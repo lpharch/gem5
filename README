@@ -1,3 +1,20 @@
+Internal used gem5 version
+
+To implement new arch features, please fork new branches from stable with 
+name like "feature-XXX"
+
+Bug fixed and simulator features which may be useful to other users should 
+be push to the develop branch
+
+*Notice* As of for now (Jan 2021), upstream gem5 is still under fast dev and interfaces
+are not complete stable. This repo activly tracks the upstream gem5 repo. So please
+consider fork your feature branch from HEAD of the develop branch for now. 
+
+
+
+
+--------------------------------------------------------------------------
+
 This is the gem5 simulator.
 
 The main website can be found at http://www.gem5.org
