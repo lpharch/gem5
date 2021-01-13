@@ -138,7 +138,7 @@ class MySystem(System):
 
     def switchCpus(self, old, new):
         assert(new[0].switchedOut())
-        m5.switchCpus(self, zip(old, new))
+        m5.switchCpus(self, list(zip(old, new)))
 
     def setDiskImages(self, img_path_1, img_path_2):
         disk0 = CowDisk(img_path_1)
