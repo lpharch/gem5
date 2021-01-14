@@ -37,3 +37,5 @@ Source('fa_lru.cc')
 Source('sector_blk.cc')
 Source('sector_tags.cc')
 Source('super_blk.cc')
+
+DebugFlag('WQ', "ad-hoc use debug flag");

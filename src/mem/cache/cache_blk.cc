@@ -45,7 +45,8 @@
 
 void
 CacheBlk::insert(const Addr tag, const bool is_secure,
-                 const int src_requestor_ID, const uint32_t task_ID)
+                 const int src_requestor_ID, const uint32_t task_ID,
+                 const uint32_t core_ID)
 {
     // Make sure that the block has been properly invalidated
     assert(!isValid());
@@ -57,6 +58,9 @@ CacheBlk::insert(const Addr tag, const bool is_secure,
 
     // Set task ID
     setTaskId(task_ID);
+
+    // Set core ID
+    setCoreId(core_ID);
 
     // Set insertion tick as current tick
     setTickInserted();

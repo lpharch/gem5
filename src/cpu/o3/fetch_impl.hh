@@ -599,6 +599,9 @@ DefaultFetch<Impl>::fetchCacheLine(Addr vaddr, ThreadID tid, Addr pc)
         cpu->thread[tid]->contextId());
 
     mem_req->taskId(cpu->taskId());
+    //wq
+    mem_req->coreId(cpu->cpuId());
+    //wqdone
 
     memReq[tid] = mem_req;
 

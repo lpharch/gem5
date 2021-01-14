@@ -468,6 +468,7 @@ TimingSimpleCPU::initiateMemRead(Addr addr, unsigned size,
     req->setByteEnable(byte_enable);
 
     req->taskId(taskId());
+    req->coreId(cpuId());//wq
 
     Addr split_addr = roundDown(addr + size - 1, block_size);
     assert(split_addr <= addr || split_addr - addr < block_size);
@@ -550,6 +551,7 @@ TimingSimpleCPU::writeMem(uint8_t *data, unsigned size,
     req->setByteEnable(byte_enable);
 
     req->taskId(taskId());
+    req->coreId(cpuId());//wq
 
     Addr split_addr = roundDown(addr + size - 1, block_size);
     assert(split_addr <= addr || split_addr - addr < block_size);
@@ -608,6 +610,7 @@ TimingSimpleCPU::initiateMemAMO(Addr addr, unsigned size,
     assert(req->hasAtomicOpFunctor());
 
     req->taskId(taskId());
+    req->coreId(cpuId());//wq
 
     Addr split_addr = roundDown(addr + size - 1, block_size);
 
@@ -701,6 +704,7 @@ TimingSimpleCPU::fetch()
         _status = BaseSimpleCPU::Running;
         RequestPtr ifetch_req = std::make_shared<Request>();
         ifetch_req->taskId(taskId());
+        ifetch_req->coreId(cpuId());//wq
         ifetch_req->setContext(thread->contextId());
         setupFetchRequest(ifetch_req);
         DPRINTF(SimpleCPU, "Translating address %#x\n", ifetch_req->getVaddr());
@@ -1227,6 +1231,7 @@ TimingSimpleCPU::initiateHtmCmd(Request::Flags flags)
     req->setPC(pc);
     req->setContext(thread->contextId());
     req->taskId(taskId());
+    req->coreId(cpuId());//wq
     req->setInstCount(t_info.numInst);
 
     assert(req->isHTMCmd());
@@ -1276,6 +1281,7 @@ TimingSimpleCPU::htmSendAbortSignal(HtmFailureFaultCause cause)
     req->setPC(pc);
     req->setContext(thread->contextId());
     req->taskId(taskId());
+    req->coreId(cpuId());//wq
     req->setInstCount(t_info.numInst);
     req->setHtmAbortCause(cause);
 

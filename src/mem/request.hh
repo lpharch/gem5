@@ -375,6 +375,9 @@ class Request
      * The task id associated with this request
      */
     uint32_t _taskId = ContextSwitchTaskId::Unknown;
+    //wq
+    uint32_t _coreId = ContextSwitchTaskId::Unknown;
+    //wqdone
 
     /**
      * The stream ID uniquely identifies a device behind the
@@ -458,7 +461,9 @@ class Request
           _cacheCoherenceFlags(other._cacheCoherenceFlags),
           privateFlags(other.privateFlags),
           _time(other._time),
-          _taskId(other._taskId), _vaddr(other._vaddr),
+          _taskId(other._taskId),
+          _coreId(other._coreId),
+          _vaddr(other._vaddr),
           _extraData(other._extraData), _contextId(other._contextId),
           _pc(other._pc), _reqInstSeqNum(other._reqInstSeqNum),
           _localAccessor(other._localAccessor),
@@ -770,6 +775,17 @@ class Request
     void
     taskId(uint32_t id) {
         _taskId = id;
+    }
+
+    uint32_t
+    coreId() const
+    {
+        return _coreId;
+    }
+
+    void
+    coreId(uint32_t id) {
+        _coreId = id;
     }
 
     /** Accessor function for architecture-specific flags.*/

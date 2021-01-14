@@ -287,6 +287,7 @@ class LSQ
         LSQUnit& _port;
         const DynInstPtr _inst;
         uint32_t _taskId;
+        uint32_t _coreId;//wq
         PacketDataPtr _data;
         std::vector<PacketPtr> _packets;
         std::vector<RequestPtr> _requests;
@@ -468,6 +469,15 @@ class LSQ
 
         uint32_t taskId() const { return _taskId; }
         RequestPtr request(int idx = 0) { return _requests.at(idx); }
+
+        void
+        coreId(const uint32_t& v)
+        {
+            _coreId = v;
+            for (auto& r: _requests)
+                r->coreId(v);
+        }
+        uint32_t coreId() const { return _coreId; }
 
         const RequestPtr
         request(int idx = 0) const
@@ -706,6 +716,7 @@ class LSQ
         using LSQRequest::_port;
         using LSQRequest::_res;
         using LSQRequest::_taskId;
+        using LSQRequest::_coreId;//wq
         using LSQRequest::_senderState;
         using LSQRequest::_state;
         using LSQRequest::flags;
@@ -757,6 +768,7 @@ class LSQ
       using LSQRequest::_requests;
       using LSQRequest::_inst;
       using LSQRequest::_taskId;
+      using LSQRequest::_coreId;
       using LSQRequest::flags;
       using LSQRequest::setState;
     public:
@@ -790,6 +802,7 @@ class LSQ
         using LSQRequest::_size;
         using LSQRequest::_state;
         using LSQRequest::_taskId;
+        using LSQRequest::_coreId;
         using LSQRequest::flags;
         using LSQRequest::isLoad;
         using LSQRequest::isTranslationComplete;

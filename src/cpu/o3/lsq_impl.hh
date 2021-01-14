@@ -718,6 +718,7 @@ LSQ<Impl>::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
         req->_byteEnable = byte_enable;
         inst->setRequest();
         req->taskId(cpu->taskId());
+        req->coreId(cpu->cpuId());//wq
 
         // There might be fault from a previous execution attempt if this is
         // a strictly ordered load
@@ -854,6 +855,7 @@ LSQ<Impl>::SingleDataRequest::initiateTranslation()
     if (_requests.size() > 0) {
         _requests.back()->setReqInstSeqNum(_inst->seqNum);
         _requests.back()->taskId(_taskId);
+        _requests.back()->coreId(_coreId); //wq
         _inst->translationStarted(true);
         setState(State::Translation);
         flags.set(Flag::TranslationStarted);
@@ -931,6 +933,7 @@ LSQ<Impl>::SplitDataRequest::initiateTranslation()
         for (auto& r: _requests) {
             r->setReqInstSeqNum(_inst->seqNum);
             r->taskId(_taskId);
+            r->coreId(_coreId); //wq
         }
 
         _inst->translationStarted(true);
@@ -1236,6 +1239,7 @@ LSQ<Impl>::HtmCmdRequest::HtmCmdRequest(LSQUnit* port,
     if (_requests.size() > 0) {
         _requests.back()->setReqInstSeqNum(_inst->seqNum);
         _requests.back()->taskId(_taskId);
+        _requests.back()->coreId(_coreId);//wq
         _requests.back()->setPaddr(_addr);
         _requests.back()->setInstCount(_inst->getCpuPtr()->totalInsts());
 

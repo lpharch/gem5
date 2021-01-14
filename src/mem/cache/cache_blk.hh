@@ -179,6 +179,7 @@ class CacheBlk : public TaggedEntry
         }
         setCoherenceBits(other.coherence);
         setTaskId(other.getTaskId());
+        setCoreId(other.getCoreId());
         setWhenReady(curTick());
         setRefCount(other.getRefCount());
         setSrcRequestorId(other.getSrcRequestorId());
@@ -201,6 +202,7 @@ class CacheBlk : public TaggedEntry
         clearCoherenceBits(AllBits);
 
         setTaskId(ContextSwitchTaskId::Unknown);
+        setCoreId(ContextSwitchTaskId::Unknown);
         setWhenReady(MaxTick);
         setRefCount(0);
         setSrcRequestorId(Request::invldRequestorId);
@@ -280,6 +282,8 @@ class CacheBlk : public TaggedEntry
     /** Get the task id associated to this block. */
     uint32_t getTaskId() const { return _taskId; }
 
+    uint32_t getCoreId() const { return _coreId; }
+
     /** Get the requestor id associated to this block. */
     uint32_t getSrcRequestorId() const { return _srcRequestorId; }
 
@@ -311,9 +315,11 @@ class CacheBlk : public TaggedEntry
      * @param is_secure Whether the block is in secure space or not.
      * @param src_requestor_ID The source requestor ID.
      * @param task_ID The new task ID.
+     * @param core_ID which core requested the new data.
      */
     void insert(const Addr tag, const bool is_secure,
-        const int src_requestor_ID, const uint32_t task_ID);
+        const int src_requestor_ID, const uint32_t task_ID,
+        const uint32_t core_ID);
     using TaggedEntry::insert;
 
     /**
@@ -458,6 +464,8 @@ class CacheBlk : public TaggedEntry
     /** Set the task id value. */
     void setTaskId(const uint32_t task_id) { _taskId = task_id; }
 
+    void setCoreId(const uint32_t core_id) { _coreId = core_id; }
+
     /** Set the source requestor id. */
     void setSrcRequestorId(const uint32_t id) { _srcRequestorId = id; }
 
@@ -470,6 +478,14 @@ class CacheBlk : public TaggedEntry
   private:
     /** Task Id associated with this block */
     uint32_t _taskId;
+
+    //wq
+    /** which cpu initially request the data
+     *  note this is different from requestorId as the later
+     *  is associated with a port in system
+     */
+    uint32_t _coreId;
+    //wqdone
 
     /** holds the source requestor ID for this block. */
     int _srcRequestorId;

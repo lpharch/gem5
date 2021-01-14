@@ -375,6 +375,7 @@ AtomicSimpleCPU::readMem(Addr addr, uint8_t *data, unsigned size,
     dcache_latency = 0;
 
     req->taskId(taskId());
+    req->coreId(cpuId());//wq
 
     Addr frag_addr = addr;
     int frag_size = 0;
@@ -460,6 +461,7 @@ AtomicSimpleCPU::writeMem(uint8_t *data, unsigned size, Addr addr,
     dcache_latency = 0;
 
     req->taskId(taskId());
+    req->coreId(cpuId()); //wq
 
     Addr frag_addr = addr;
     int frag_size = 0;
@@ -575,6 +577,7 @@ AtomicSimpleCPU::amoMem(Addr addr, uint8_t* data, unsigned size,
     dcache_latency = 0;
 
     req->taskId(taskId());
+    req->coreId(cpuId());//wq
     req->setVirt(addr, size, flags, dataRequestorId(),
                  thread->pcState().instAddr(), std::move(amo_op));
 
@@ -655,6 +658,7 @@ AtomicSimpleCPU::tick()
                            !curMacroStaticInst;
         if (needToFetch) {
             ifetch_req->taskId(taskId());
+            ifetch_req->coreId(cpuId());//wq
             setupFetchRequest(ifetch_req);
             fault = thread->mmu->translateAtomic(ifetch_req, thread->getTC(),
                                                  BaseTLB::Execute);

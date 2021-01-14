@@ -52,6 +52,7 @@
 #include "debug/CachePort.hh"
 #include "debug/CacheRepl.hh"
 #include "debug/CacheVerbose.hh"
+#include "debug/WQ.hh"
 #include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr.hh"
 #include "mem/cache/prefetch/base.hh"
@@ -1612,6 +1613,7 @@ BaseCache::writebackBlk(CacheBlk *blk)
         req->setFlags(Request::SECURE);
 
     req->taskId(blk->getTaskId());
+    req->coreId(blk->getCoreId());//wq
 
     PacketPtr pkt =
         new Packet(req, blk->isSet(CacheBlk::DirtyBit) ?
@@ -1655,6 +1657,7 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
         req->setFlags(Request::SECURE);
     }
     req->taskId(blk->getTaskId());
+    req->coreId(blk->getCoreId());//wq
 
     PacketPtr pkt = new Packet(req, MemCmd::WriteClean, blkSize, id);
 
@@ -1726,6 +1729,8 @@ BaseCache::writebackVisitor(CacheBlk &blk)
             regenerateBlkAddr(&blk), blkSize, 0, Request::funcRequestorId);
 
         request->taskId(blk.getTaskId());
+        request->coreId(blk.getCoreId()); //wq
+
         if (blk.isSecure()) {
             request->setFlags(Request::SECURE);
         }
@@ -2541,8 +2546,8 @@ BaseCache::CacheReqPacketQueue::sendDeferredPacket()
     assert(!waitingOnRetry);
 
     // there should never be any deferred request packets in the
-    // queue, instead we resly on the cache to provide the packets
-    // from the MSHR queue or write queue
+    // queue (transmitList), instead we resly on the cache to provide
+    // the packets from the MSHR queue or write queue
     assert(deferredPacketReadyTime() == MaxTick);
 
     // check for request packets (requests & writebacks)

@@ -1825,6 +1825,8 @@ FullO3CPU<Impl>::htmSendAbortSignal(ThreadID tid, uint64_t htm_uid,
     req->taskId(taskId());
     req->setContext(this->thread[tid]->contextId());
     req->setHtmAbortCause(cause);
+    //wq
+    req->coreId(cpuId());
 
     assert(req->isHTMAbort());
 

@@ -920,6 +920,7 @@ Cache::cleanEvictBlk(CacheBlk *blk)
         req->setFlags(Request::SECURE);
 
     req->taskId(blk->getTaskId());
+    req->coreId(blk->getCoreId());//wq
 
     PacketPtr pkt = new Packet(req, MemCmd::CleanEvict);
     pkt->allocate();
