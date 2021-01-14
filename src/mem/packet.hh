@@ -85,10 +85,13 @@ class MemCmd
         WriteReq,
         WriteResp,
         WriteCompleteResp,
-        WritebackDirty,
-        WritebackClean,
-        WriteClean,            // writes dirty data below without evicting
-        CleanEvict,
+        WritebackDirty,        //writeback means evicting from its orig place
+        WritebackClean,        //dirty/clean indicated the evicted blk is
+                               //dirty or clean
+        WriteClean,            //keep the blk at its place, but send the dirty
+                               //data below
+        CleanEvict,            //evict clean data, not simply dropping cuz
+                               //want to keep it in cache below
         SoftPFReq,
         SoftPFExReq,
         HardPFReq,
