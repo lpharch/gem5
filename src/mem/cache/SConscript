@@ -29,6 +29,7 @@
 Import('*')
 
 SimObject('Cache.py')
+SimObject('MittsController.py')
 
 Source('base.cc')
 Source('cache.cc')
@@ -38,6 +39,7 @@ Source('mshr_queue.cc')
 Source('noncoherent_cache.cc')
 Source('write_queue.cc')
 Source('write_queue_entry.cc')
+Source('mitts_controller.cc')
 
 DebugFlag('Cache')
 DebugFlag('CacheComp')
@@ -46,6 +48,7 @@ DebugFlag('CacheRepl')
 DebugFlag('CacheTags')
 DebugFlag('CacheVerbose')
 DebugFlag('HWPrefetch')
+DebugFlag('MITTS')
 
 # CacheTags is so outrageously verbose, printing the cache's entire tag
 # array on each timing access, that you should probably have to ask for

@@ -59,6 +59,7 @@
 #include "enums/Clusivity.hh"
 #include "mem/cache/cache_blk.hh"
 #include "mem/cache/compressors/base.hh"
+#include "mem/cache/mitts_controller.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/cache/tags/base.hh"
 #include "mem/cache/write_queue.hh"
@@ -340,6 +341,9 @@ class BaseCache : public ClockedObject
 
     /** Tag and data Storage */
     BaseTags *tags;
+
+    /** Mitts Controller */
+    MittsController *mittsCtrl;
 
     /** Compression method being used. */
     Compressor::Base* compressor;

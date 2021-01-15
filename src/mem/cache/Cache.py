@@ -95,6 +95,8 @@ class BaseCache(ClockedObject):
     is_read_only = Param.Bool(False, "Is this cache read only (e.g. inst)")
 
     prefetcher = Param.BasePrefetcher(NULL,"Prefetcher attached to cache")
+    mittsCtrl = Param.MittsController(NULL,
+                    "Mitts controller attached to cache")
     prefetch_on_access = Param.Bool(False,
          "Notify the hardware prefetcher on every access (not just misses)")
 

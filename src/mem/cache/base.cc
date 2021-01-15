@@ -52,6 +52,7 @@
 #include "debug/CachePort.hh"
 #include "debug/CacheRepl.hh"
 #include "debug/CacheVerbose.hh"
+#include "debug/MITTS.hh"
 #include "debug/WQ.hh"
 #include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr.hh"
@@ -82,6 +83,7 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve), // see below
       writeBuffer("write buffer", p.write_buffers, p.mshrs), // see below
       tags(p.tags),
+      mittsCtrl(p.mittsCtrl),
       compressor(p.compressor),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
@@ -133,6 +135,10 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
         "Compressed cache %s does not have a compression algorithm", name());
     if (compressor)
         compressor->setCache(this);
+
+    if (mittsCtrl){
+        DPRINTF(MITTS, "Detect mitts controller at %s\n", name());
+    }
 }
 
 BaseCache::~BaseCache()
@@ -275,6 +281,12 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 // A WriteClean should never coalesce with any
                 // outstanding cache maintenance requests.
 
+                if (mittsCtrl){
+                    Tick modFwdTime = mittsCtrl->modSendTime(
+                        pkt->req->coreId(), forward_time);
+                    DPRINTF(MITTS, "mitts func, orig time %u, new time %u\n",
+                                   forward_time, modFwdTime);
+                }
                 // We use forward_time here because there is an
                 // uncached memory write, forwarded to WriteBuffer.
                 allocateWriteBuffer(pkt, forward_time);
@@ -308,6 +320,13 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
         // no MSHR
         assert(pkt->req->requestorId() < system->maxRequestors());
         stats.cmdStats(pkt).mshr_misses[pkt->req->requestorId()]++;
+
+        if (mittsCtrl){
+           Tick modFwdTime = mittsCtrl->modSendTime(pkt->req->coreId(),
+                                                 forward_time);
+           DPRINTF(MITTS, "mitts func, orig time %u, new time %u\n",
+                          forward_time, modFwdTime);
+        }
 
         if (pkt->isEviction() || pkt->cmd == MemCmd::WriteClean) {
             // We use forward_time here because there is an

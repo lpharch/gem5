@@ -34,7 +34,8 @@ gem5 configuration script.
 """
 
 import m5
-from m5.objects import Cache, L2XBar, StridePrefetcher, SubSystem
+from m5.objects import Cache, L2XBar, StridePrefetcher
+from m5.objects import SubSystem, MittsController
 from m5.params import AddrRange, AllMemory, MemorySize
 from m5.util.convert import toMemorySize
 
@@ -160,6 +161,8 @@ class L3Cache(Cache):
     mshrs = 256
     tgts_per_mshr = 12
     clusivity = 'mostly_excl'
+
+    mittsCtrl = MittsController(numCPU=4,numBin=10)
 
     size = '4MB'
 
