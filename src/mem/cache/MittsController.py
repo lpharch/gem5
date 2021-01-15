@@ -8,4 +8,7 @@ class MittsController(SimObject):
 
     numCPU = Param.Unsigned("Number of cores in System")
     numBin = Param.Unsigned("Number of bins used by controller")
-    relinq_period = Param.Unsigned(10000000,"Relinquish Period in ticks")
+    initCredit = Param.Unsigned(200, "Initial Credits in each bucket")
+    #make sure bin_inter * num_bin = relinq_period
+    relinq_period = Param.Tick(2000000000,"Relinquish Period in ticks")
+    bin_interval  = Param.Tick(200000000, "Latency of each bin")

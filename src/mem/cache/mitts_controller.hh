@@ -72,9 +72,13 @@ class BaseCache;
 class MittsController : public SimObject
 {
   private:
-    Tick relinquish_period;
     unsigned bin_num;
     unsigned core_num;
+    Tick relinquish_period;
+    uint32_t initCredits;
+    Tick bin_interval;
+
+    Tick nextRelinqTick;
 
     std::vector<std::vector<uint32_t>> credits;
     std::vector<std::vector<uint32_t>> defaults;
@@ -92,6 +96,8 @@ class MittsController : public SimObject
     void relinquishBins();
     void fetchNewConfig();
 
+    void showBins(uint32_t coreId);
+
     /**
      * Modifying the send time of a packet to meet the inter sending
      * time distribtion requirement
@@ -105,7 +111,6 @@ class MittsController : public SimObject
 
     //Note seems add de-constructor will cause the build to fail
     //~MittsController();
-  public:
     MittsController(const MittsControllerParams &p);
 
     void

@@ -284,8 +284,8 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 if (mittsCtrl){
                     Tick modFwdTime = mittsCtrl->modSendTime(
                         pkt->req->coreId(), forward_time);
-                    DPRINTF(MITTS, "mitts func, orig time %u, new time %u\n",
-                                   forward_time, modFwdTime);
+                    DPRINTF(MITTS,"New mod time %llu\n",modFwdTime);
+                    forward_time = modFwdTime;
                 }
                 // We use forward_time here because there is an
                 // uncached memory write, forwarded to WriteBuffer.
@@ -324,14 +324,15 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
         if (mittsCtrl){
            Tick modFwdTime = mittsCtrl->modSendTime(pkt->req->coreId(),
                                                  forward_time);
-           DPRINTF(MITTS, "mitts func, orig time %u, new time %u\n",
-                          forward_time, modFwdTime);
+            DPRINTF(MITTS,"New mod time %llu\n",modFwdTime);
+            forward_time = modFwdTime;
         }
 
         if (pkt->isEviction() || pkt->cmd == MemCmd::WriteClean) {
             // We use forward_time here because there is an
             // writeback or writeclean, forwarded to WriteBuffer.
             allocateWriteBuffer(pkt, forward_time);
+
         } else {
             if (blk && blk->isValid()) {
                 // If we have a write miss to a valid block, we

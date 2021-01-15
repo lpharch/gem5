@@ -162,7 +162,10 @@ class L3Cache(Cache):
     tgts_per_mshr = 12
     clusivity = 'mostly_excl'
 
-    mittsCtrl = MittsController(numCPU=4,numBin=10)
+    mittsCtrl = MittsController(numCPU=4,numBin=10,
+                                relinq_period =5000000,
+                                initCredit=10,
+                                bin_interval=20000)
 
     size = '4MB'
 
