@@ -7,7 +7,7 @@ class MittsController(SimObject):
     cxx_header = "mem/cache/mitts_controller.hh"
 
     numCPU = Param.Unsigned("Number of cores in System")
-    numBin = Param.Unsigned("Number of bins used by controller")
+    numBin = Param.Unsigned(10, "Number of bins used by controller")
     initCredit = Param.Unsigned(200, "Initial Credits in each bucket")
     #make sure bin_inter * num_bin = relinq_period
     relinq_period = Param.Tick(2000000000,"Relinquish Period in ticks")

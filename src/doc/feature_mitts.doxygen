@@ -1,0 +1,39 @@
+/*! \page gem5mitts MITTS in gem5
+
+  \tableofcontents
+
+  The document describes the memory inter-arrival time traffic shaping feature
+  build into gem5 (current implemented under feature_MITTS branch). For details
+  about MITTS, refer to the 2016 paper http://www.parallel.princeton.edu/papers/yz_mitts.pdf
+
+  \section how How to use
+
+  To enable mitts module for a shared cache object. Simply instantiate an MittsController instance in the config script and pass it to the shared cache's mittsCtrl field. The MittsController can be instantiated with custom parameters, for example:
+    - numBin number of latency control intervals
+    - relinq_period bin relinquish period in ticks
+    - initCredit initial credits in each bin
+    - bin_interval the delay range each bin represents
+
+  also, user now need to pass the number of CPU in the simulated system when instantiating MittsController now to make it work correctly. For an sample config file, please refer to 
+  config/example/simple_x86/caches
+  
+  The MittsController is designed to be integrated into shared caches, although instnatiating it in private cache should also works (in which case it only shaping the traffic from the core it attached to), but such scanerio is not tested. 
+
+  \section struct MITTS Module Structure
+
+  The mitts functionality is implemented through the MITTS Controller module in gem5. MITTS controller module is designed similar to prefetcher or compressor modules. It inspects every packet cache trying to schedule sending throught its memory-side ports, and add a varible delay to that pkts depends on the availble credits in bins. 
+
+  \image html "mitts.png" "Mitts Controller Flow" width=65%
+ 
+  Internally, MITTS Controller maintain a 2-d vector which stores the left credits for each core to send packet at specific inter-packet interval. A Packet check these bins from small to large and when the bin contains credits, it deduce the credit and add that bin's delay to the packet and send it out.
+
+  The bins are relinquished with credits perodically according to a pre-configured profile. This is implemented by periodcally schedule an event for this MITTS Controller object, where in the callback of the event, it update the 2-d vector. The first event is scheduled when the instnace's startup() method is called. 
+
+  \section interface MITTS Control Interface
+
+  Currently, the parameters needed by MITTS controller is passed in throught its python class. Only the 
+  cpu number is mandatory and all other parameters have default value. 
+
+  An in-progress feature is to configure the parameters with m5 pseudo instruction. In which case the SW can dynamically change some of the parameters (initial credits in each bin and relinquish interval). The Mitts Controller check the parameter updates everytime it relinquish the credits so update will take effect as soon as current relinquish period expires. 
+
+*/
