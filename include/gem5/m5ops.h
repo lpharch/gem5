@@ -66,6 +66,8 @@ void m5_load_symbol();
 void m5_panic(void);
 void m5_work_begin(uint64_t workid, uint64_t threadid);
 void m5_work_end(uint64_t workid, uint64_t threadid);
+uint64_t m5_msr_read(uint64_t reg_id);
+void m5_msr_write(uint64_t reg_id, uint64_t val);
 
 /*
  * Send a very generic poke to the workload so it can do something. It's up to

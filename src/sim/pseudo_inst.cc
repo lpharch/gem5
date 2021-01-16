@@ -584,4 +584,20 @@ workend(ThreadContext *tc, uint64_t workid, uint64_t threadid)
     }
 }
 
+//this function model read a msr
+uint64_t
+readmsr(ThreadContext *tc, uint64_t reg_id)
+{
+    DPRINTF(PseudoInst, "PseudoInst::readmsr(%i)\n", reg_id);
+    return reg_id;
+}
+
+//this function models write a msr
+void
+writemsr(ThreadContext *tc, uint64_t reg_id, uint64_t val)
+{
+    DPRINTF(PseudoInst, "PseudoInst::readmsr(%i, %i)\n", reg_id, val);
+    return;
+}
+
 } // namespace PseudoInst
