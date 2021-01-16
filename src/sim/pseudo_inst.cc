@@ -72,6 +72,9 @@
 using namespace std;
 using namespace Stats;
 
+extern void my_wrmsr(uint64_t cpuId, uint64_t msr, uint64_t value);
+extern uint64_t my_rdmsr(uint64_t cpuId, uint64_t msr);
+
 namespace PseudoInst
 {
 
@@ -434,6 +437,19 @@ writefile(ThreadContext *tc, Addr vaddr, uint64_t len, uint64_t offset,
     delete [] buf;
 
     return len;
+}
+
+uint64_t readMsr(ThreadContext *tc, uint64_t cpuId, uint64_t msr) {
+    uint64_t result;
+    DPRINTF(PseudoInst, "PseudoInst::rdmsr(%ud, %ud)\n", cpuId, msr);
+    result = my_rdmsr(cpuId, msr);
+    return result;
+}
+
+void writeMsr(ThreadContext *tc, uint64_t cpuId, uint64_t msr, uint64_t value) {
+    DPRINTF(PseudoInst, "PseudoInst::wrmsr(%ud, %ud, %ud)\n", cpuId, msr, value);
+    my_wrmsr(cpuId, msr, value);
+    return;
 }
 
 void

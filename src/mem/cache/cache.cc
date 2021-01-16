@@ -62,6 +62,7 @@
 #include "mem/cache/write_queue_entry.hh"
 #include "mem/request.hh"
 #include "params/Cache.hh"
+#include "msr.hh"
 
 Cache::Cache(const CacheParams &p)
     : BaseCache(p, p.system->cacheLineSize()),
@@ -69,6 +70,42 @@ Cache::Cache(const CacheParams &p)
 {
     assert(p.tags);
     assert(p.replacement_policy);
+
+    // Initialize the MSRs for the cache parition and MITTS.
+    std::vector<uint64_t> msr(p.cores*MSR_PER_CORE);
+    //allocated = p.cores*MSR_PER_CORE;
+    register_cache(this);
+
+    // Basic partition and mitts initialization.
+    if(p.partition) {
+	for(uint64_t i=0; i<p.cores; i++) {
+	    my_wrmsr(i,0,0);
+	}
+    }
+    if(p.has_mitts) {
+	for(uint64_t i=0; i<p.cores; i++) {
+	    for(int j=1; j<=10; j++) {
+		my_wrmsr(i,j,5);
+	    }
+	}
+    }
+}
+
+void
+Cache::invalidateWay(int way)
+{
+    std::vector<ReplaceableEntry*> allSets = tags->getSets(way);
+    PacketList writebacks;
+    for(const auto& location : allSets) {
+	CacheBlk* blk = static_cast<CacheBlk*>(location);
+	if(blk->isValid()) {
+	    PacketPtr wb_pkt = evictBlock(blk);
+	    writebacks.push_back(wb_pkt);
+	}
+    }
+    //TODO: this is clearly wrong, but let it be here for now
+    doWritebacksAtomic(writebacks);
+    //doWriteBacks(writebacks, curTick());
 }
 
 void

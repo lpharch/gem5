@@ -56,6 +56,7 @@
 class CacheBlk;
 struct CacheParams;
 class MSHR;
+class BaseIndexingPolicy;
 
 /**
  * A coherent cache that can be arranged in flexible topologies.
@@ -166,6 +167,10 @@ class Cache : public BaseCache
      * @return True if the port is waiting for a retry
      */
     bool sendMSHRQueuePacket(MSHR* mshr) override;
+    void invalidateWay(int way);
+    void updateMitts(int cpu, int bucket) {
+    	// Unimplemented function atm.
+    } 
 };
 
 #endif // __MEM_CACHE_CACHE_HH__

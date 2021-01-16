@@ -70,6 +70,8 @@ class BaseTags(ClockedObject):
     # Set the indexing entry size as the block size
     entry_size = Param.Int(Parent.cache_line_size,
                            "Indexing entry size in bytes")
+    cores = Param.Int(Parent.cores, "Cores ccessing this cache")
+    partition = Param.Bool(Parent.partition, "Is this cache partitioned?")
 
 class BaseSetAssoc(BaseTags):
     type = 'BaseSetAssoc'

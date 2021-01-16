@@ -1144,7 +1144,9 @@ class BaseCache : public ClockedObject
 
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
-
+    BaseTags* getTags() {
+	return this->tags;
+    }
     /**
      * Query block size of a cache.
      * @return  The block size

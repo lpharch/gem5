@@ -61,6 +61,7 @@
 #include "mem/cache/tags/indexing_policies/base.hh"
 #include "mem/packet.hh"
 #include "params/BaseSetAssoc.hh"
+#include "mem/cache/msr.hh"
 
 /**
  * A basic cache tag store.
@@ -83,7 +84,8 @@ class BaseSetAssoc : public BaseTags
 
     /** Replacement policy */
     ReplacementPolicy::Base *replacementPolicy;
-
+    
+    const bool partition;
   public:
     /** Convenience typedef. */
      typedef BaseSetAssocParams Params;
@@ -124,7 +126,13 @@ class BaseSetAssoc : public BaseTags
      */
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) override
     {
-        CacheBlk *blk = findBlock(addr, is_secure);
+	uint64_t coreId = 0;	// TODO: Get info from the packet instead.
+	uint64_t mask = my_rdmsr(coreId, 0);
+        CacheBlk *blk;
+	if(partition)
+	    blk = findBlock(addr, is_secure, mask);
+	else
+	    blk = findBlock(addr, is_secure);
 
         // Access all tags in parallel, hence one in each way.  The data side
         // either accesses all blocks in parallel, or one block sequentially on

@@ -52,7 +52,8 @@
 BaseSetAssoc::BaseSetAssoc(const Params &p)
     :BaseTags(p), allocAssoc(p.assoc), blks(p.size / p.block_size),
      sequentialAccess(p.sequential_access),
-     replacementPolicy(p.replacement_policy)
+     replacementPolicy(p.replacement_policy),
+     partition(p.partition)
 {
     // There must be a indexing policy
     fatal_if(!p.indexing_policy, "An indexing policy is required");

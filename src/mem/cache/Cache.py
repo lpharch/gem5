@@ -80,6 +80,10 @@ class BaseCache(ClockedObject):
     tag_latency = Param.Cycles("Tag lookup latency")
     data_latency = Param.Cycles("Data access latency")
     response_latency = Param.Cycles("Latency for the return path on a miss");
+ 
+    cores = Param.Unsigned(1, "How many cores use this cache?");
+    partition = Param.Bool(False, "Is this cache partitioned?");
+    has_mitts = Param.Bool(False, "Is Mitts implemented at this cache level?");
 
     warmup_percentage = Param.Percent(0,
         "Percentage of tags to be touched to warm up the cache")

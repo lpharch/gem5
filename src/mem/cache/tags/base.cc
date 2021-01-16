@@ -68,6 +68,11 @@ BaseTags::BaseTags(const Params &p)
     registerExitCallback([this]() { cleanupRefs(); });
 }
 
+std::vector<ReplaceableEntry*>
+BaseTags::getSets(int way) {
+    return indexingPolicy->getSets(way);
+}
+
 ReplaceableEntry*
 BaseTags::findBlockBySetAndWay(int set, int way) const
 {
@@ -75,7 +80,7 @@ BaseTags::findBlockBySetAndWay(int set, int way) const
 }
 
 CacheBlk*
-BaseTags::findBlock(Addr addr, bool is_secure) const
+BaseTags::findBlock(Addr addr, bool is_secure, uint64_t mask) const
 {
     // Extract block tag
     Addr tag = extractTag(addr);
@@ -87,7 +92,8 @@ BaseTags::findBlock(Addr addr, bool is_secure) const
     // Search for block
     for (const auto& location : entries) {
         CacheBlk* blk = static_cast<CacheBlk*>(location);
-        if (blk->matchTag(tag, is_secure)) {
+	uint64_t allowedWay = (mask & ((uint64_t)1 << blk->getWay()));
+        if (blk->matchTag(tag, is_secure) && blk->isValid() && allowedWay) {
             return blk;
         }
     }

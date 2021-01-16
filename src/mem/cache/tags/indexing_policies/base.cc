@@ -68,6 +68,17 @@ BaseIndexingPolicy::BaseIndexingPolicy(const Params &p)
     }
 }
 
+std::vector<ReplaceableEntry*>
+BaseIndexingPolicy::getSets(const uint64_t way) const
+{
+    assert(way < assoc);
+    std::vector<ReplaceableEntry*> setsOfWay;
+    for(int i=0; i<numSets; i++) 
+	setsOfWay.push_back(sets[i][way]);
+
+    return setsOfWay;
+}
+
 ReplaceableEntry*
 BaseIndexingPolicy::getEntry(const uint32_t set, const uint32_t way) const
 {

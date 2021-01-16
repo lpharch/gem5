@@ -68,8 +68,8 @@
 #define M5OP_PANIC              0x54
 
 #define M5OP_RESERVED1          0x55 // Reserved for user, used to be annotate
-#define M5OP_RESERVED2          0x56 // Reserved for user
-#define M5OP_RESERVED3          0x57 // Reserved for user
+#define M5OP_WRITE_MSR         0x56 // Reserved for user
+#define M5OP_READ_MSR          0x57 // Reserved for user
 #define M5OP_RESERVED4          0x58 // Reserved for user
 #define M5OP_RESERVED5          0x59 // Reserved for user
 
@@ -106,6 +106,8 @@
     M5OP(m5_panic, M5OP_PANIC)                                  \
     M5OP(m5_work_begin, M5OP_WORK_BEGIN)                        \
     M5OP(m5_work_end, M5OP_WORK_END)                            \
+    M5OP(m5_write_msr, M5OP_WRITE_MSR)                            \
+    M5OP(m5_read_msr, M5OP_read_MSR)                            \
     M5OP(m5_dist_toggle_sync, M5OP_DIST_TOGGLE_SYNC)            \
     M5OP(m5_workload, M5OP_WORKLOAD)                            \
 

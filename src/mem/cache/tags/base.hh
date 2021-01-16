@@ -193,7 +193,8 @@ class BaseTags : public ClockedObject
      * @param is_secure True if the target memory space is secure.
      * @return Pointer to the cache block.
      */
-    virtual CacheBlk *findBlock(Addr addr, bool is_secure) const;
+    virtual CacheBlk *findBlock(Addr addr, bool is_secure, uint64_t mask = 0xFFFFFFFFFFFFFFFF) const;
+    std::vector<ReplaceableEntry*> getSets(int way);
 
     /**
      * Find a block given set and way.
