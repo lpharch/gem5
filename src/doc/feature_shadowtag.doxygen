@@ -1,0 +1,40 @@
+/*! \page gem5shadowtag Contention Detectors in gem5
+
+  \tableofcontents
+
+  The document describes some of the contention detection mechanism built into the gem5 simulator. Note all modification described below is built base on commit: 89f2871168bcd2a69f3edc2e9f12f3bc66101128. A rebase to the develop head is in progress. 
+
+
+  \section shadowtag Shadow Tag Array
+  \subsection shadowtag_intro Functional of Shadow Tag Array
+  Shadow tag array, or auxiliary tag array has been employed in various previous works as a baseline implementation of LLC contention detector. The idea is except for the normal tag array for LLC, each core (or only the cores hosting critical workloads) maintains a separate tag array of LLC, and only traffics related to that core will access this tag array. E.g. cache-line requested/accessed by that core will update this shadow tag. 
+
+  When cache accesses hit in shadow tag array but miss the normal tag array, it's treated as a contention event as without co-locate with workloads on other cores, this access will result in a hit instead of a miss. 
+
+  \subsection shadowtag_usage How to Use 
+  Currently, shadow tag is by default enabled for CPU0 in every shared cache. The statistics for shadow-tag array can be found in the stats.txt file after each run. A debug flag called ShadowTag is added and when enabled, the stats for contention event is also print to the console, a Python script is provided to process the console printouts.
+
+  \subsection shadowtag_impl implementation
+  To associate each packet with the core, a field called coreID is added to the request class. Also, the CacheBlock class is extended to include a coreId field as well, which gets its value from the packet that fills it. 
+
+  Next, when every request is constructed, the coreID is properly initialized either from the core or from the coreID field from the cache block. If the request is initialized from other agents like DMA, its coreID is populated with a default value (1024 in the current implementation) and is discarded in later analysis. 
+
+  The Cache class is extended with another pointer to BaseTag, and when the system is constructed and the cache is shared, a Tag object will be instantiated and point by this BaseTag pointer. During the simulation on each packet's path in the cache instance. The request's coreID is checked first and if it belongs to CPU0, the shadow tag array is accessed. 
+
+
+  \section counter Cross Eviction Counter as Contention Detector in LLC
+
+  This mod implements our proposal of using counters as contention detector in LLC. The idea is to keep a matrix of counters in each LLC cache block. The dimension of the counter matrix will be N, N as the number of cores in the system. 
+  
+  When a cache block belongs to CPU A replaces the cache block belongs to CPU B, the the counter at row B column A will be increased by 1. At the end of the simulation, users can read per set interference counter or use the python scrip we provide to sum the counters of each set to gain a global view. Intuitively, the replacement caused by the same core will be counted on the diagonal of the counters while evictions caused by other cores will be distributed on the upper or lower triangle of the counters. 
+
+  \image html "counter.png" "Different counts distribution based on access pattern" width=65%
+  
+  \subsection counter_imple Implementation
+  The mechanism to associate each cache block with a core ID is the same as the one described in the previous session. Currently, the counter reads are printed out as a trace, and require to enable the debug flag of "CacheRepl" during the simulation. (the CacheRepl flag is reused and the original debug prints guard by this flag is either disabled or moved to other flags). 
+  
+  After the trace is collected after the simulation, a python script is provided to parse the trace and construct an internal representation. Then various queries can be conducted like the global ratio of self-eviction or cross-eviction, per-core evictions, etc. The python script will run in interactive mode and users can query custom metrics as well. 
+
+
+
+*/
