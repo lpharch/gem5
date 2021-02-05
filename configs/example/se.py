@@ -67,6 +67,8 @@ from common.FileSystemConfig import config_filesystem
 from common.Caches import *
 from common.cpu2000 import *
 
+import ipdb
+
 def get_processes(options):
     """Interprets provided options and returns a list of processes"""
 
@@ -160,7 +162,7 @@ else:
     print("No workload specified. Exiting!\n", file=sys.stderr)
     sys.exit(1)
 
-
+ipdb.set_trace()
 (CPUClass, test_mem_mode, FutureClass) = Simulation.setCPUClass(options)
 CPUClass.numThreads = numThreads
 
@@ -169,12 +171,11 @@ if options.smt and options.num_cpus > 1:
     fatal("You cannot use SMT with multiple CPUs!")
 
 np = options.num_cpus
-mp0_path = multiprocesses[0].executable
 system = System(cpu = [CPUClass(cpu_id=i) for i in range(np)],
                 mem_mode = test_mem_mode,
                 mem_ranges = [AddrRange(options.mem_size)],
                 cache_line_size = options.cacheline_size,
-                workload = SEWorkload.init_compatible(mp0_path))
+                workload = NULL)
 
 if numThreads > 1:
     system.multi_thread = True
@@ -196,8 +197,9 @@ system.cpu_clk_domain = SrcClockDomain(clock = options.cpu_clock,
 
 # If elastic tracing is enabled, then configure the cpu and attach the elastic
 # trace probe
-if options.elastic_trace_en:
-    CpuConfig.config_etrace(CPUClass, system.cpu, options)
+ipdb.set_trace()
+#if options.elastic_trace_en:
+#    CpuConfig.config_etrace(CPUClass, system.cpu, options)
 
 # All cpus belong to a common cpu_clk_domain, therefore running at a common
 # frequency.
@@ -260,7 +262,14 @@ if options.ruby:
         system.cpu[i].createInterruptController()
 
         # Connect the cpu's cache ports to Ruby
-        ruby_port.connectCpuPorts(system.cpu[i])
+        system.cpu[i].icache_port = ruby_port.slave
+        system.cpu[i].dcache_port = ruby_port.slave
+        if buildEnv['TARGET_ISA'] == 'x86':
+            system.cpu[i].interrupts[0].pio = ruby_port.master
+            system.cpu[i].interrupts[0].int_master = ruby_port.slave
+            system.cpu[i].interrupts[0].int_slave = ruby_port.master
+            system.cpu[i].itb.walker.port = ruby_port.slave
+            system.cpu[i].dtb.walker.port = ruby_port.slave
 else:
     MemClass = Simulation.setMemClass(options)
     system.membus = SystemXBar()

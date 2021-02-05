@@ -40,6 +40,8 @@ import m5.objects
 from common import ObjectList
 from common import HMC
 
+import ipdb
+
 def create_mem_intf(intf, r, i, nbr_mem_ctrls, intlv_bits, intlv_size,
                     xor_low_bit):
     """
@@ -219,6 +221,7 @@ def config_mem(options, system):
                     dram_intf.latency = '1ns'
                     print("For elastic trace, over-riding Simple Memory "
                         "latency to 1ns.")
+                #ipdb.set_trace()
 
                 # Create the controller that will drive the interface
                 if opt_mem_type == "HMC_2500_1x32":
@@ -229,13 +232,17 @@ def config_mem(options, system):
                                              static_frontend_latency = '4ns')
                 elif opt_mem_type == "SimpleMemory":
                     mem_ctrl = m5.objects.SimpleMemory()
+                elif opt_mem_type =="DRAMsim3":
+                    mem_ctrl = m5.objects.DRAMsim3()
+                    mem_ctrl.range='8GB'
                 else:
                     mem_ctrl = m5.objects.MemCtrl()
 
                 # Hookup the controller to the interface and add to the list
-                if opt_mem_type != "SimpleMemory":
+                if (opt_mem_type != "SimpleMemory") and
+                    (opt_mem_type != "DRAMsim3"):
                     mem_ctrl.dram = dram_intf
-
+                mem_ctrl.range = r
                 mem_ctrls.append(mem_ctrl)
 
             elif opt_nvm_type and (not opt_mem_type or range_iter % 2 == 0):
@@ -260,7 +267,7 @@ def config_mem(options, system):
     # hook up NVM interface when channel is shared with DRAM + NVM
     for i in range(len(nvm_intfs)):
         mem_ctrls[i].nvm = nvm_intfs[i];
-
+    #ipdb.set_trace()
     # Connect the controller to the xbar port
     for i in range(len(mem_ctrls)):
         if opt_mem_type == "HMC_2500_1x32":

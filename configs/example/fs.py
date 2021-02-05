@@ -66,6 +66,8 @@ from common import ObjectList
 from common.Caches import *
 from common import Options
 
+import ipdb
+
 def cmd_line_template():
     if options.command_line and options.command_line_file:
         print("Error: --command-line and --command-line-file are "
@@ -78,6 +80,7 @@ def cmd_line_template():
     return None
 
 def build_test_system(np):
+    #ipdb.set_trace()
     cmdline = cmd_line_template()
     if buildEnv['TARGET_ISA'] == "mips":
         test_sys = makeLinuxMipsSystem(test_mem_mode, bm[0], cmdline=cmdline)
@@ -142,7 +145,7 @@ def build_test_system(np):
         test_sys.have_virtualization = True
 
     test_sys.init_param = options.init_param
-
+    #ipdb.set_trace()
     # For now, assign all the CPUs to the same clock domain
     test_sys.cpu = [TestCPUClass(clk_domain=test_sys.cpu_clk_domain, cpu_id=i)
                     for i in range(np)]
@@ -215,8 +218,10 @@ def build_test_system(np):
         # If restoring from checkpoint or fast forwarding, the code that does this for
         # FutureCPUClass is in the Simulation module. If the check passes then the
         # elastic trace probe is attached to the switch CPUs.
-        if options.elastic_trace_en and options.checkpoint_restore == None and \
-            not options.fast_forward:
+        #ipdb.set_trace()
+        if (options.elastic_trace_en and
+            options.checkpoint_restore == None and
+                not options.fast_forward):
             CpuConfig.config_etrace(TestCPUClass, test_sys.cpu, options)
 
         CacheConfig.config_cache(options, test_sys)
@@ -347,6 +352,9 @@ elif len(bm) == 1:
 else:
     print("Error I don't know how to create more than 2 systems.")
     sys.exit(1)
+
+if options.kernel_starting :
+    root.sim_quantum = int(1e9)
 
 if options.timesync:
     root.time_sync_enable = True

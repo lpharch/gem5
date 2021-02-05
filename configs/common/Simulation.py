@@ -53,6 +53,8 @@ from m5.defines import buildEnv
 from m5.objects import *
 from m5.util import *
 
+import ipdb
+
 if six.PY3:
     long = int
 
@@ -85,8 +87,9 @@ def setCPUClass(options):
             TmpClass, test_mem_mode = getCPUClass(options.restore_with_cpu)
     elif options.fast_forward:
         CPUClass = TmpClass
-        TmpClass = AtomicSimpleCPU
-        test_mem_mode = 'atomic'
+        #TmpClass = AtomicSimpleCPU
+        test_mem_mode = 'atomic_noncaching'
+        TmpClass = X86KvmCPU
 
     # Ruby only supports atomic accesses in noncaching mode
     if test_mem_mode == 'atomic' and options.ruby:
@@ -439,6 +442,12 @@ def run(options, root, testsys, cpu_class):
     else:
         cptdir = getcwd()
 
+    if options.kernel_starting and options.warmup_insts :
+        fatal("Please use warmup_aftkernel to use with kernel_starting")
+
+    if options.warmup_aftkernel and not options.kernel_starting:
+        fatal("Must specify --kernel-starting when using --warmup-aftkernel")
+
     if options.fast_forward and options.checkpoint_restore != None:
         fatal("Can't specify both --fast-forward and --checkpoint-restore")
 
@@ -467,13 +476,14 @@ def run(options, root, testsys, cpu_class):
     if options.maxinsts:
         for i in range(np):
             testsys.cpu[i].max_insts_any_thread = options.maxinsts
-
+    ipdb.set_trace()
     if cpu_class:
         switch_cpus = [cpu_class(switched_out=True, cpu_id=(i))
                        for i in range(np)]
 
         for i in range(np):
             if options.fast_forward:
+                ipdb.set_trace()
                 testsys.cpu[i].max_insts_any_thread = int(options.fast_forward)
             switch_cpus[i].system = testsys
             switch_cpus[i].workload = testsys.cpu[i].workload
@@ -537,6 +547,65 @@ def run(options, root, testsys, cpu_class):
         else:
             repeat_switch_cpu_list = [(testsys.cpu[i], repeat_switch_cpus[i])
                                       for i in range(np)]
+
+
+#-----------------Added----------------------------------------
+
+    if options.kernel_starting:
+        progkvm_cpus = [X86KvmCPU(switched_out=True, cpu_id=(i))
+                       for i in range(np)]
+
+        for i in range(np):
+            progkvm_cpus[i].system =  testsys
+            progkvm_cpus[i].workload = testsys.cpu[i].workload
+            progkvm_cpus[i].clk_domain = testsys.cpu[i].clk_domain
+            progkvm_cpus[i].isa = testsys.cpu[i].isa
+
+            # warmup period
+            progkvm_cpus[i].max_insts_any_thread =  int(options.fast_forward)
+            testsys.cpu[i].max_insts_any_thread  =  100000000000000000
+
+        testsys.progkvm_cpu = progkvm_cpus
+        for i,cpu in enumerate(testsys.progkvm_cpu):
+            for obj in cpu.descendants():
+                obj.eventq_index = 0
+            cpu.eventq_index = i+1
+
+        for i,cpu in enumerate(testsys.cpu):
+            for obj in cpu.descendants():
+                obj.eventq_index = 0
+            cpu.eventq_index = i+1
+
+        #warm cpu is for warmup
+        progswitch_cpu_list =
+            [(testsys.cpu[i],testsys.progkvm_cpu[i]) for i in range(np)]
+        switch_cpu_list =
+        [(testsys.progkvm_cpu[i],testsys.switch_cpus[i]) for i in range(np)]
+
+    if options.warmup_aftkernel:
+        warmup_cpus = [TimingSimpleCPU(switched_out=True, cpu_id=(i))
+                       for i in range(np)]
+
+        for i in range(np):
+            warmup_cpus[i].system =  testsys
+            warmup_cpus[i].workload = testsys.cpu[i].workload
+            warmup_cpus[i].clk_domain = testsys.cpu[i].clk_domain
+            warmup_cpus[i].isa = testsys.cpu[i].isa
+
+            # warmup period
+            warmup_cpus[i].max_insts_any_thread
+                        = int(options.warmup_aftkernel)
+
+        testsys.warmup_cpu = warmup_cpus
+        #warm cpu is for warmup
+        switch_cpu_list =
+         [(testsys.progkvm_cpu[i],testsys.warmup_cpu[i]) for i in range(np)]
+        #switch cpu is for real
+        switch_cpu_list1 =
+         [(testsys.warmup_cpu[i], testsys.switch_cpus[i]) for i in range(np)]
+
+#-----------------------------Added end-------------------------
+
 
     if options.standard_switch:
         switch_cpus = [TimingSimpleCPU(switched_out=True, cpu_id=(i))
@@ -619,6 +688,7 @@ def run(options, root, testsys, cpu_class):
     if options.checkpoint_restore:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     root.apply_config(options.param)
+    ipdb.set_trace()
     m5.instantiate(checkpoint_dir)
 
     # Initialization is complete.  If we're not in control of simulation
@@ -664,6 +734,22 @@ def run(options, root, testsys, cpu_class):
               "Checkpoint starts starts from tick: %d", maxtick, cpt_starttick)
 
     if options.standard_switch or cpu_class:
+        if options.kernel_starting:
+            print("START kernel with testsys.cpu[0] cpu")
+            exit_event = m5.simulate() #Do the kernel start
+            exit_cause = exit_event.getCause()
+            success = exit_cause == "m5_exit instruction encountered"
+            if not success:
+                print("Error while booting linux: {}".format(exit_cause))
+                exit(1)
+            print("Booting Done")
+            print("Switch to progkvmcpu instruction count:%s" %
+                    str(testsys.cpu[0].max_insts_any_thread))
+            m5.switchCpus(testsys, progswitch_cpu_list)
+                #Now it has kvm prog CPU
+
+
+
         if options.standard_switch:
             print("Switch at instruction count:%s" %
                     str(testsys.cpu[0].max_insts_any_thread))
@@ -671,26 +757,33 @@ def run(options, root, testsys, cpu_class):
         elif cpu_class and options.fast_forward:
             print("Switch at instruction count:%s" %
                     str(testsys.cpu[0].max_insts_any_thread))
+            print("Start FF")
             exit_event = m5.simulate()
         else:
             print("Switch at curTick count:%s" % str(10000))
             exit_event = m5.simulate(10000)
         print("Switched CPUS @ tick %s" % (m5.curTick()))
 
-        m5.switchCpus(testsys, switch_cpu_list)
 
-        if options.standard_switch:
+        m5.switchCpus(testsys, switch_cpu_list)
+        # for kernel start with instrucion warmup, now warmup else,usual O3
+
+        if options.standard_switch or options.warmup_aftkernel:
             print("Switch at instruction count:%d" %
                     (testsys.switch_cpus[0].max_insts_any_thread))
 
             #warmup instruction count may have already been set
-            if options.warmup_insts:
+            if options.warmup_aftkernel:
+                print("Start warmup")
                 exit_event = m5.simulate()
+                print("Switching CPUS @ tick %s" % (m5.curTick()))
+                print("Simulation ends instruction count:%d" %
+                        (testsys.warmup_cpu[0].max_insts_any_thread))
             else:
                 exit_event = m5.simulate(options.standard_switch)
-            print("Switching CPUS @ tick %s" % (m5.curTick()))
-            print("Simulation ends instruction count:%d" %
-                    (testsys.switch_cpus_1[0].max_insts_any_thread))
+                print("Switching CPUS @ tick %s" % (m5.curTick()))
+                print("Simulation ends instruction count:%d" %
+                        (testsys.switch_cpus_1[0].max_insts_any_thread))
             m5.switchCpus(testsys, switch_cpu_list1)
 
     # If we're taking and restoring checkpoints, use checkpoint_dir
@@ -721,7 +814,7 @@ def run(options, root, testsys, cpu_class):
         restoreSimpointCheckpoint()
 
     else:
-        if options.fast_forward:
+        if options.fast_forward or options.kernel_starting:
             m5.stats.reset()
         print("**** REAL SIMULATION ****")
 
