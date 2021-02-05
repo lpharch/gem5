@@ -476,14 +476,14 @@ def run(options, root, testsys, cpu_class):
     if options.maxinsts:
         for i in range(np):
             testsys.cpu[i].max_insts_any_thread = options.maxinsts
-    ipdb.set_trace()
+    #ipdb.set_trace()
     if cpu_class:
         switch_cpus = [cpu_class(switched_out=True, cpu_id=(i))
                        for i in range(np)]
 
         for i in range(np):
             if options.fast_forward:
-                ipdb.set_trace()
+                #ipdb.set_trace()
                 testsys.cpu[i].max_insts_any_thread = int(options.fast_forward)
             switch_cpus[i].system = testsys
             switch_cpus[i].workload = testsys.cpu[i].workload
@@ -577,9 +577,9 @@ def run(options, root, testsys, cpu_class):
             cpu.eventq_index = i+1
 
         #warm cpu is for warmup
-        progswitch_cpu_list =
+        progswitch_cpu_list =\
             [(testsys.cpu[i],testsys.progkvm_cpu[i]) for i in range(np)]
-        switch_cpu_list =
+        switch_cpu_list =\
         [(testsys.progkvm_cpu[i],testsys.switch_cpus[i]) for i in range(np)]
 
     if options.warmup_aftkernel:
@@ -593,15 +593,15 @@ def run(options, root, testsys, cpu_class):
             warmup_cpus[i].isa = testsys.cpu[i].isa
 
             # warmup period
-            warmup_cpus[i].max_insts_any_thread
+            warmup_cpus[i].max_insts_any_thread\
                         = int(options.warmup_aftkernel)
 
         testsys.warmup_cpu = warmup_cpus
         #warm cpu is for warmup
-        switch_cpu_list =
+        switch_cpu_list =\
          [(testsys.progkvm_cpu[i],testsys.warmup_cpu[i]) for i in range(np)]
         #switch cpu is for real
-        switch_cpu_list1 =
+        switch_cpu_list1 =\
          [(testsys.warmup_cpu[i], testsys.switch_cpus[i]) for i in range(np)]
 
 #-----------------------------Added end-------------------------
@@ -688,7 +688,7 @@ def run(options, root, testsys, cpu_class):
     if options.checkpoint_restore:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     root.apply_config(options.param)
-    ipdb.set_trace()
+    #ipdb.set_trace()
     m5.instantiate(checkpoint_dir)
 
     # Initialization is complete.  If we're not in control of simulation

@@ -239,7 +239,7 @@ def config_mem(options, system):
                     mem_ctrl = m5.objects.MemCtrl()
 
                 # Hookup the controller to the interface and add to the list
-                if (opt_mem_type != "SimpleMemory") and
+                if (opt_mem_type != "SimpleMemory") and\
                     (opt_mem_type != "DRAMsim3"):
                     mem_ctrl.dram = dram_intf
                 mem_ctrl.range = r

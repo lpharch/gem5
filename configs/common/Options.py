@@ -123,6 +123,7 @@ def addNoISAOptions(parser):
                       help="use external port for SystemC TLM cosimulation")
     parser.add_option("--caches", action="store_true")
     parser.add_option("--l2cache", action="store_true")
+    parser.add_option("--l3cache", action="store_true")
     parser.add_option("--num-dirs", type="int", default=1)
     parser.add_option("--num-l2caches", type="int", default=1)
     parser.add_option("--num-l3caches", type="int", default=1)
@@ -240,7 +241,7 @@ def addCommonOptions(parser):
                       help="Parallel distributed gem5 simulation.")
     parser.add_option("--dist-sync-on-pseudo-op", action="store_true",
                       help="Use a pseudo-op to start dist-gem5 synchronization.")
-    parser.add_option("--is-switch", action="store_true",
+    parser.add_option("--is-switch", action="store_true",\
                       help="Select the network switch simulator process for a"\
                       "distributed gem5 run")
     parser.add_option("--dist-rank", default=0, action="store", type="int",
@@ -342,12 +343,12 @@ def addCommonOptions(parser):
     # Fastforwarding and simpoint related materials
     parser.add_option("-M", "--warmup-aftkernel",action="store",type="int",
         default=None,
-        help="warmup period after bootup and
-        fastforwarding, requires --fast-forward and --kernel-starting")
+        help="""warmup period after bootup and
+        fastforwarding, requires --fast-forward and --kernel-starting""")
     parser.add_option("-W", "--warmup-insts", action="store", type="int",
         default=None,
-        help="Warmup period in total instructions
-        (requires --standard-switch)")
+        help="""Warmup period in total instructions
+        (requires --standard-switch)""")
     parser.add_option("-K", "--kernel-starting",action="store_true",
         default=False,
         help="""At the beggining of kernel, enable kvm mode for fast bootup""")
