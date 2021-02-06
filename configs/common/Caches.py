@@ -80,8 +80,8 @@ class L3Cache(Cache):
     data_latency = 40
     response_latency = 20
     mshrs = 256
-    tgts_per_mshr = 12
-    write_buffers = 8
+    tgts_per_mshr = 20
+    write_buffers = 256
     size = '4MB'
 
 class IOCache(Cache):
