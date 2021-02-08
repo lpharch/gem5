@@ -352,6 +352,12 @@ def addCommonOptions(parser):
         default=None,
         help="""Warmup period in total instructions
         (requires --standard-switch)""")
+    parser.add_option("--restore-manual",action="store_true",
+        default=False,
+        help="""set the restore in kvm load""")
+    parser.add_option("--checkpt-manual",action="store_true",
+        default=False,
+        help="""set the checkpoint after kvm load""")
     parser.add_option("-K", "--kernel-starting",action="store_true",
         default=False,
         help="""At the beggining of kernel, enable kvm mode for fast bootup""")

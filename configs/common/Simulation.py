@@ -201,7 +201,8 @@ def findCptDir(options, cptdir, testsys):
 
         cpts.sort(key = lambda a: long(a))
 
-        cpt_num = options.checkpoint_restore
+        cpt_num = 1 if options.restore_manual else options.checkpoint_restore
+
         if cpt_num > len(cpts):
             fatal('Checkpoint %d not found', cpt_num)
 
@@ -630,6 +631,24 @@ def run(options, root, testsys, cpu_class):
         switch_cpu_list1 =\
          [(testsys.warmup_cpu[i], testsys.switch_cpus[i]) for i in range(np)]
 
+    if options.restore_manual:
+        restore_cpus = [TimingSimpleCPU(switched_out=True, cpu_id=(i))
+                       for i in range(np)]
+
+        for i in range(np):
+            restore_cpus[i].system =  testsys
+            restore_cpus[i].workload = testsys.cpu[i].workload
+            restore_cpus[i].clk_domain = testsys.cpu[i].clk_domain
+            restore_cpus[i].isa = testsys.cpu[i].isa
+
+            warmup_cpus[i].max_insts_any_thread\
+                        = int(1)
+
+        testsys.restore_cpu = restore_cpus
+        restore_cpu_list1=\
+         [(testsys.cpu[i] ,testsys.restore_cpu[i]) for i in range(np)]
+        restore_cpu_list =\
+         [(testsys.cpu[i],testsys.progkvm_cpu[i]) for i in range(np)]
 #-----------------------------Added end-------------------------
 
 
@@ -711,7 +730,10 @@ def run(options, root, testsys, cpu_class):
         simpoints, interval_length = parseSimpointAnalysisFile(options, testsys)
 
     checkpoint_dir = None
+    ipdb.set_trace()
     if options.checkpoint_restore:
+        cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
+    elif options.restore_manual:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     root.apply_config(options.param)
     #ipdb.set_trace()
@@ -772,7 +794,13 @@ def run(options, root, testsys, cpu_class):
             print("Booting Done")
             print("Switch to progkvmcpu instruction count:%s" %
                     str(testsys.cpu[0].max_insts_any_thread))
-            m5.switchCpus(testsys, progswitch_cpu_list)
+            if options.checkpt_manual:
+                m5.checkpoint(joinpath(cptdir,"cpt.%d"%(1)))
+
+            if options.restore_manual:
+                m5.switchCpus(testsys, restore_cpu_list)
+            else:
+                m5.switchCpus(testsys, progswitch_cpu_list)
                 #Now it has kvm prog CPU
 
         if options.repeat:
