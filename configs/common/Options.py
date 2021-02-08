@@ -345,6 +345,9 @@ def addCommonOptions(parser):
         default=None,
         help="""warmup period after bootup and
         fastforwarding, requires --fast-forward and --kernel-starting""")
+    parser.add_option("-R", "--repeat", action="store",type="int",
+        default=None,
+        help="repeating measurements this amount")
     parser.add_option("-W", "--warmup-insts", action="store", type="int",
         default=None,
         help="""Warmup period in total instructions

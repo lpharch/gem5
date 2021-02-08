@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013 ARM Limited
+# Copyright (c) 2011-2013 ARM Limited
 # All rights reserved
 #
 # The license below extends only to copyright in the software and shall
@@ -474,8 +474,11 @@ def run(options, root, testsys, cpu_class):
             testsys.cpu[i].progress_interval = options.prog_interval
 
     if options.maxinsts:
-        for i in range(np):
-            testsys.cpu[i].max_insts_any_thread = options.maxinsts
+        if options.repeat:
+            mainrepeat = options.maxinsts
+        else:
+            for i in range(np):
+                testsys.cpu[i].max_insts_any_thread = options.maxinsts
     #ipdb.set_trace()
     if cpu_class:
         switch_cpus = [cpu_class(switched_out=True, cpu_id=(i))
@@ -484,7 +487,11 @@ def run(options, root, testsys, cpu_class):
         for i in range(np):
             if options.fast_forward:
                 #ipdb.set_trace()
-                testsys.cpu[i].max_insts_any_thread = int(options.fast_forward)
+                if options.repeat:
+                    fast_repeat = options.fast_forward
+                else:
+                    testsys.cpu[i].max_insts_any_thread \
+                        = int(options.fast_forward)
             switch_cpus[i].system = testsys
             switch_cpus[i].workload = testsys.cpu[i].workload
             switch_cpus[i].clk_domain = testsys.cpu[i].clk_domain
@@ -493,7 +500,10 @@ def run(options, root, testsys, cpu_class):
             switch_cpus[i].isa = testsys.cpu[i].isa
             # simulation period
             if options.maxinsts:
-                switch_cpus[i].max_insts_any_thread = options.maxinsts
+                if options.repeat:
+                    mainrepeat = options.maxinsts
+                else:
+                    switch_cpus[i].max_insts_any_thread = options.maxinsts
             # Add checker cpu if selected
             if options.checker:
                 switch_cpus[i].addCheckerCpu()
@@ -552,20 +562,24 @@ def run(options, root, testsys, cpu_class):
 #-----------------Added----------------------------------------
 
     if options.kernel_starting:
-        progkvm_cpus = [X86KvmCPU(switched_out=True, cpu_id=(i))
+        progkvm_cpu = [X86KvmCPU(switched_out=True, cpu_id=(i))
                        for i in range(np)]
 
         for i in range(np):
-            progkvm_cpus[i].system =  testsys
-            progkvm_cpus[i].workload = testsys.cpu[i].workload
-            progkvm_cpus[i].clk_domain = testsys.cpu[i].clk_domain
-            progkvm_cpus[i].isa = testsys.cpu[i].isa
+            progkvm_cpu[i].system =  testsys
+            progkvm_cpu[i].workload = testsys.cpu[i].workload
+            progkvm_cpu[i].clk_domain = testsys.cpu[i].clk_domain
+            progkvm_cpu[i].isa = testsys.cpu[i].isa
 
             # warmup period
-            progkvm_cpus[i].max_insts_any_thread =  int(options.fast_forward)
+            if options.repeat:
+                progrepeat = int(options.fast_forward)
+            else:
+                progkvm_cpu[i].max_insts_any_thread \
+                    =  int(options.fast_forward)
             testsys.cpu[i].max_insts_any_thread  =  100000000000000000
 
-        testsys.progkvm_cpu = progkvm_cpus
+        testsys.progkvm_cpu = progkvm_cpu
         for i,cpu in enumerate(testsys.progkvm_cpu):
             for obj in cpu.descendants():
                 obj.eventq_index = 0
@@ -577,6 +591,15 @@ def run(options, root, testsys, cpu_class):
             cpu.eventq_index = i+1
 
         #warm cpu is for warmup
+        if options.repeat:
+        #want to change cpu from program kvm to detailed for initialization
+            init_cpu_list =\
+        [(testsys.progkvm_cpu[i],testsys.switch_cpus[i]) for i in range(np)]
+        #from detailed, change it to program kvm to fastforward
+            repeat_cpu_list =\
+        [(testsys.switch_cpus[i],testsys.progkvm_cpu[i]) for i in range(np)]
+
+
         progswitch_cpu_list =\
             [(testsys.cpu[i],testsys.progkvm_cpu[i]) for i in range(np)]
         switch_cpu_list =\
@@ -593,7 +616,10 @@ def run(options, root, testsys, cpu_class):
             warmup_cpus[i].isa = testsys.cpu[i].isa
 
             # warmup period
-            warmup_cpus[i].max_insts_any_thread\
+            if options.repeat:
+                warmrepeat = options.warmup_aftkernel
+            else:
+                warmup_cpus[i].max_insts_any_thread\
                         = int(options.warmup_aftkernel)
 
         testsys.warmup_cpu = warmup_cpus
@@ -739,6 +765,7 @@ def run(options, root, testsys, cpu_class):
             exit_event = m5.simulate() #Do the kernel start
             exit_cause = exit_event.getCause()
             success = exit_cause == "m5_exit instruction encountered"
+            success = True
             if not success:
                 print("Error while booting linux: {}".format(exit_cause))
                 exit(1)
@@ -747,6 +774,51 @@ def run(options, root, testsys, cpu_class):
                     str(testsys.cpu[0].max_insts_any_thread))
             m5.switchCpus(testsys, progswitch_cpu_list)
                 #Now it has kvm prog CPU
+
+        if options.repeat:
+            #pre condition : kvm program cpu
+            m5.switchCpus(testsys,init_cpu_list)
+            #pre condition :  detailed cpu
+            for trial in range(options.repeat):
+                print("Start FF:Repeat %d"%trial)
+                m5.switchCpus(testsys,repeat_cpu_list)
+                success, exit_cause = runCPU(progrepeat,testsys.progkvm_cpu)
+                if not success:
+                    print("ERROR fail for FF between samples: {}"\
+                    .format(exit_cause))
+                    exit(1)
+                m5.switchCpus(testsys,switch_cpu_list)
+                #when warmup, it's warmup else, switch_cpus
+                if options.warmup_aftkernel:
+                    print("Start Warmup:Repeat %d"%trial)
+                    success, exit_cause = runCPU(warmrepeat,testsys.warmup_cpu)
+                else:
+                    m5.stats.reset()
+                    print("Start detailed cpu:Repeat %d"%trial)
+                    success, exit_cause \
+                        = runCPU(mainrepeat,testsys.switch_cpus)
+                    if success:
+                        m5.stats.dump()
+                if not success:
+                    print("ERROR fail for FF between samples: {}"\
+                    .format(exit_cause))
+                    exit(1)
+               #when warmup, it's switch CPU
+                if options.warmup_aftkernel:
+                    m5.switchCpus(testsys,switch_cpu_list1)
+                    m5.stats.reset()
+                    print("Start detailed cpu:Repeat %d"%trial)
+                    success, exit_cause \
+                        = runCPU(mainrepeat,testsys.switch_cpus)
+                    if not success:
+                        print("ERROR fail for FF between samples: {}"\
+                        .format(exit_cause))
+                        exit(1)
+                    m5.stats.dump()
+
+
+
+
 
 
 
@@ -833,3 +905,15 @@ def run(options, root, testsys, cpu_class):
 
     if exit_event.getCode() != 0:
         print("Simulated exit code not 0! Exit code is", exit_event.getCode())
+
+
+def runCPU(period, currentCPU, ctrl_cpu_index=0):
+    currentCPU[ctrl_cpu_index].scheduleInstStop(0,period,
+            "Max Insts readed CPU %d"%(ctrl_cpu_index))
+    pri_count = currentCPU[0].totalInsts()
+    exit_event = m5.simulate()
+    exit_cause = exit_event.getCause()
+    success = exit_cause.startswith("Max Insts")
+    post_count = currentCPU[0].totalInsts()
+    print("DEBUG: insts simed this interval %d"%(post_count - pri_count))
+    return success, exit_cause
