@@ -43,6 +43,7 @@ from __future__ import absolute_import
 from m5.defines import buildEnv
 from m5.objects import *
 
+
 # Base implementations of L1, L2, IO and TLB-walker caches. There are
 # used in the regressions and also as base components in the
 # system-configuration scripts. The values are meant to serve as a
@@ -83,6 +84,7 @@ class L3Cache(Cache):
     tgts_per_mshr = 20
     write_buffers = 256
     size = '4MB'
+    prefetcher = DCPTPrefetcher()
 
 class IOCache(Cache):
     assoc = 8
