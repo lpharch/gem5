@@ -78,9 +78,9 @@ DRAMsim3::init()
         port.sendRangeChange();
     }
 
-    if (system()->cacheLineSize() != wrapper.burstSize())
-        fatal("DRAMsim3 burst size %d does not match cache line size %d\n",
-              wrapper.burstSize(), system()->cacheLineSize());
+    //if (system()->cacheLineSize() != wrapper.burstSize())
+    //    fatal("DRAMsim3 burst size %d does not match cache line size %d\n",
+    //          wrapper.burstSize(), system()->cacheLineSize());
 }
 
 void

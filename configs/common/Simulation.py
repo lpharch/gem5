@@ -578,8 +578,8 @@ def run(options, root, testsys, cpu_class):
             else:
                 progkvm_cpu[i].max_insts_any_thread \
                     =  int(options.fast_forward)
-            testsys.cpu[i].max_insts_any_thread  =  100000000000000000
-
+            testsys.cpu[i].max_insts_any_thread  =  0#100000000000000000
+            #want it to be inf
         testsys.progkvm_cpu = progkvm_cpu
         for i,cpu in enumerate(testsys.progkvm_cpu):
             for obj in cpu.descendants():
@@ -641,7 +641,7 @@ def run(options, root, testsys, cpu_class):
             restore_cpus[i].clk_domain = testsys.cpu[i].clk_domain
             restore_cpus[i].isa = testsys.cpu[i].isa
 
-            warmup_cpus[i].max_insts_any_thread\
+            restore_cpus[i].max_insts_any_thread\
                         = int(1)
 
         testsys.restore_cpu = restore_cpus
@@ -730,7 +730,7 @@ def run(options, root, testsys, cpu_class):
         simpoints, interval_length = parseSimpointAnalysisFile(options, testsys)
 
     checkpoint_dir = None
-    ipdb.set_trace()
+    #ipdb.set_trace()
     if options.checkpoint_restore:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     elif options.restore_manual:
@@ -818,6 +818,7 @@ def run(options, root, testsys, cpu_class):
                 m5.switchCpus(testsys,switch_cpu_list)
                 #when warmup, it's warmup else, switch_cpus
                 if options.warmup_aftkernel:
+                    #ipdb.set_trace()
                     print("Start Warmup:Repeat %d"%trial)
                     success, exit_cause = runCPU(warmrepeat,testsys.warmup_cpu)
                 else:
@@ -828,7 +829,7 @@ def run(options, root, testsys, cpu_class):
                     if success:
                         m5.stats.dump()
                 if not success:
-                    print("ERROR fail for FF between samples: {}"\
+                    print("ERROR fail for detail or warm between samples: {}"\
                     .format(exit_cause))
                     exit(1)
                #when warmup, it's switch CPU
@@ -839,13 +840,10 @@ def run(options, root, testsys, cpu_class):
                     success, exit_cause \
                         = runCPU(mainrepeat,testsys.switch_cpus)
                     if not success:
-                        print("ERROR fail for FF between samples: {}"\
+                        print("ERROR fail for detailed between samples: {}"\
                         .format(exit_cause))
                         exit(1)
                     m5.stats.dump()
-
-
-
 
 
 

@@ -48,7 +48,7 @@ class DRAMsim3(AbstractMemory):
                         "the CPU or other requestor")
 
     configFile = Param.String("ext/dramsim3/DRAMsim3/configs/"
-                              "DDR4_8Gb_x8_3200.ini",
+                              "DDR5_8Gb_x4_3200_DUO.ini",
                               "The configuration file to use with DRAMSim3")
     filePath = Param.String("ext/dramsim3/DRAMsim3/",
                             "Directory to prepend to file names")
