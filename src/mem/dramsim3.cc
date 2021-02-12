@@ -192,7 +192,8 @@ DRAMsim3::recvTimingReq(PacketPtr pkt)
     // if we cannot accept we need to send a retry once progress can
     // be made
     bool can_accept = nbrOutstanding() < wrapper.queueSize();
-
+    if (can_accept)
+        can_accept = wrapper.canAccept(pkt->getAddr(),pkt->isWrite());
     // keep track of the transaction
     if (pkt->isRead()) {
         if (can_accept) {
