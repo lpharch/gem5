@@ -736,7 +736,7 @@ def run(options, root, testsys, cpu_class):
     elif options.restore_manual:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     root.apply_config(options.param)
-    #ipdb.set_trace()
+    ipdb.set_trace()
     m5.instantiate(checkpoint_dir)
 
     # Initialization is complete.  If we're not in control of simulation
@@ -780,7 +780,7 @@ def run(options, root, testsys, cpu_class):
     if options.checkpoint_restore != None and maxtick < cpt_starttick:
         fatal("Bad maxtick (%d) specified: " \
               "Checkpoint starts starts from tick: %d", maxtick, cpt_starttick)
-
+    ipdb.set_trace()
     if options.standard_switch or cpu_class:
         if options.kernel_starting:
             print("START kernel with testsys.cpu[0] cpu")
@@ -796,12 +796,27 @@ def run(options, root, testsys, cpu_class):
                     str(testsys.cpu[0].max_insts_any_thread))
             if options.checkpt_manual:
                 m5.checkpoint(joinpath(cptdir,"cpt.%d"%(1)))
+                exit_event = m5.simulate() #Do the kernel start
+                exit_cause = exit_event.getCause()
 
-            if options.restore_manual:
-                m5.switchCpus(testsys, restore_cpu_list)
+            if options.restore_manual and not options.checkpoint_repeat:
+                m5.switchCpus(testsys, restore_cpu_list) #change to kvmprog cpu
+            elif options.checkpoint_repeat:
+                pass
             else:
                 m5.switchCpus(testsys, progswitch_cpu_list)
                 #Now it has kvm prog CPU
+
+        #precondtion : kvm program CPU
+        if options.checkpoint_repeat:
+            for trial in range(options.checkpoint_repeat):
+                print("Start trial :%d"%(trial+1))
+                success, exit_cause = runCPU(progrepeat,testsys.cpu)
+                if not success:
+                    print("ERROR fail for FF between samples: {}"\
+                    .format(exit_cause))
+                    exit(1)
+                m5.checkpoint(joinpath(cptdir,"cpt.%d"%(trial+2)))
 
         if options.repeat:
             #pre condition : kvm program cpu
@@ -921,6 +936,17 @@ def run(options, root, testsys, cpu_class):
         if options.repeat_switch and maxtick > options.repeat_switch:
             exit_event = repeatSwitch(testsys, repeat_switch_cpu_list,
                                       maxtick, options.repeat_switch)
+        elif options.checkpoint_restore:
+            exit_event = runCPU
+            m5.stats.reset()
+
+            success, exit_cause \
+                = runCPU(options.maxinsts,testsys.switch_cpus_1)
+            if not success:
+                print("ERROR fail for detailed between samples: {}"\
+                .format(exit_cause))
+                exit(1)
+            m5.stats.dump()
         else:
             exit_event = benchCheckpoints(options, maxtick, cptdir)
 
