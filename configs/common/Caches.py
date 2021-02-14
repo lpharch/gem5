@@ -82,8 +82,8 @@ class L3Cache(Cache):
     response_latency = 20
     mshrs = 256
     tgts_per_mshr = 20
-    write_buffers = 256
-    size = '4MB'
+    write_buffers = 32
+    size = '16MB'
     prefetcher = DCPTPrefetcher()
 
 class IOCache(Cache):

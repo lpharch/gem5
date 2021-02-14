@@ -736,7 +736,7 @@ def run(options, root, testsys, cpu_class):
     elif options.restore_manual:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     root.apply_config(options.param)
-    ipdb.set_trace()
+    #ipdb.set_trace()
     m5.instantiate(checkpoint_dir)
 
     # Initialization is complete.  If we're not in control of simulation
@@ -866,7 +866,9 @@ def run(options, root, testsys, cpu_class):
         if options.standard_switch:
             print("Switch at instruction count:%s" %
                     str(testsys.cpu[0].max_insts_any_thread))
-            exit_event = m5.simulate()
+            #exit_event = m5.simulate()
+            #This one is temporal patch need to think about it later
+            #if you really want other restore
         elif cpu_class and options.fast_forward:
             print("Switch at instruction count:%s" %
                     str(testsys.cpu[0].max_insts_any_thread))
