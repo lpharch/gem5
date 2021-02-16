@@ -573,11 +573,14 @@ def run(options, root, testsys, cpu_class):
             progkvm_cpu[i].isa = testsys.cpu[i].isa
 
             # warmup period
-            if options.repeat:
+
+            if options.repeat and options.fast_forward:
                 progrepeat = int(options.fast_forward)
-            else:
+            elif options.fast_forward:
                 progkvm_cpu[i].max_insts_any_thread \
                     =  int(options.fast_forward)
+            else:
+                progkvm_cpu[i].max_insts_any_thread = 1
             testsys.cpu[i].max_insts_any_thread  =  0#100000000000000000
             #want it to be inf
         testsys.progkvm_cpu = progkvm_cpu
@@ -647,8 +650,9 @@ def run(options, root, testsys, cpu_class):
         testsys.restore_cpu = restore_cpus
         restore_cpu_list1=\
          [(testsys.cpu[i] ,testsys.restore_cpu[i]) for i in range(np)]
-        restore_cpu_list =\
-         [(testsys.cpu[i],testsys.progkvm_cpu[i]) for i in range(np)]
+        if not options.simpoint_profile:
+            restore_cpu_list =\
+             [(testsys.cpu[i],testsys.progkvm_cpu[i]) for i in range(np)]
 #-----------------------------Added end-------------------------
 
 
@@ -780,7 +784,7 @@ def run(options, root, testsys, cpu_class):
     if options.checkpoint_restore != None and maxtick < cpt_starttick:
         fatal("Bad maxtick (%d) specified: " \
               "Checkpoint starts starts from tick: %d", maxtick, cpt_starttick)
-    ipdb.set_trace()
+    #ipdb.set_trace()
     if options.standard_switch or cpu_class:
         if options.kernel_starting:
             print("START kernel with testsys.cpu[0] cpu")

@@ -307,6 +307,7 @@ if args:
     sys.exit(1)
 
 # system under test can be any CPU
+#ipdb.set_trace()
 (TestCPUClass, test_mem_mode, FutureClass) = Simulation.setCPUClass(options)
 
 # Match the memories with the CPUs, based on the options for the test system
