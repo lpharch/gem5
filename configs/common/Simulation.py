@@ -137,7 +137,7 @@ def findCptDir(options, cptdir, testsys):
     from os.path import isdir, exists
     from os import listdir
     import re
-
+    ipdb.set_trace()
     if not isdir(cptdir):
         fatal("checkpoint dir %s does not exist!", cptdir)
 
@@ -357,7 +357,7 @@ def parseSimpointAnalysisFile(options, testsys):
 
     return (simpoints, interval_length)
 
-def takeSimpointCheckpoints(simpoints, interval_length, cptdir):
+def takeSimpointCheckpoints(simpoints, interval_length, cptdir, testsys):
     num_checkpoints = 0
     index = 0
     last_chkpnt_inst_count = -1
@@ -369,17 +369,14 @@ def takeSimpointCheckpoints(simpoints, interval_length, cptdir):
             exit_cause = "simpoint starting point found"
             code = 0
         else:
-            exit_event = m5.simulate()
-
+            #exit_event = m5.simulate()
+            if index == 0:
+                runCPU(starting_inst_count,testsys.switch_cpus)
+            else:
+                runCPU(starting_inst_count-last_chkpnt_inst_count,
+                testsys.switch_cpus)
+            print(starting_inst_count - last_chkpnt_inst_count)
             # skip checkpoint instructions should they exist
-            while exit_event.getCause() == "checkpoint":
-                print("Found 'checkpoint' exit event...ignoring...")
-                exit_event = m5.simulate()
-
-            exit_cause = exit_event.getCause()
-            code = exit_event.getCode()
-
-        if exit_cause == "simpoint starting point found":
             m5.checkpoint(joinpath(cptdir,
                 "cpt.simpoint_%02d_inst_%d_weight_%f_interval_%d_warmup_%d"
                 % (index, starting_inst_count, weight, interval_length,
@@ -388,8 +385,6 @@ def takeSimpointCheckpoints(simpoints, interval_length, cptdir):
                 (num_checkpoints, starting_inst_count, weight))
             num_checkpoints += 1
             last_chkpnt_inst_count = starting_inst_count
-        else:
-            break
         index += 1
 
     print('Exiting @ tick %i because %s' % (m5.curTick(), exit_cause))
@@ -460,7 +455,7 @@ def run(options, root, testsys, cpu_class):
 
     if options.repeat_switch and options.take_checkpoints:
         fatal("Can't specify both --repeat-switch and --take-checkpoints")
-
+    ipdb.set_trace()
     # Setup global stat filtering.
     stat_root_simobjs = []
     for stat_root_str in options.stats_root:
@@ -740,7 +735,7 @@ def run(options, root, testsys, cpu_class):
     elif options.restore_manual:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     root.apply_config(options.param)
-    #ipdb.set_trace()
+    ipdb.set_trace()
     m5.instantiate(checkpoint_dir)
 
     # Initialization is complete.  If we're not in control of simulation
@@ -926,7 +921,7 @@ def run(options, root, testsys, cpu_class):
 
     # Take SimPoint checkpoints
     elif options.take_simpoint_checkpoints != None:
-        takeSimpointCheckpoints(simpoints, interval_length, cptdir)
+        takeSimpointCheckpoints(simpoints, interval_length, cptdir, testsys)
 
     # Restore from SimPoint checkpoints
     elif options.restore_simpoint_checkpoint != None:
@@ -971,6 +966,7 @@ def runCPU(period, currentCPU, ctrl_cpu_index=0):
     pri_count = currentCPU[0].totalInsts()
     exit_event = m5.simulate()
     exit_cause = exit_event.getCause()
+    print(exit_cause)
     success = exit_cause.startswith("Max Insts")
     post_count = currentCPU[0].totalInsts()
     print("DEBUG: insts simed this interval %d"%(post_count - pri_count))
