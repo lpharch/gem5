@@ -371,10 +371,10 @@ def takeSimpointCheckpoints(simpoints, interval_length, cptdir, testsys):
         else:
             #exit_event = m5.simulate()
             if index == 0:
-                runCPU(starting_inst_count,testsys.switch_cpus)
+                runCPU(starting_inst_count,testsys.cpu)
             else:
                 runCPU(starting_inst_count-last_chkpnt_inst_count,
-                testsys.switch_cpus)
+                testsys.cpu)
             print(starting_inst_count - last_chkpnt_inst_count)
             # skip checkpoint instructions should they exist
             m5.checkpoint(joinpath(cptdir,
@@ -391,24 +391,31 @@ def takeSimpointCheckpoints(simpoints, interval_length, cptdir, testsys):
     print("%d checkpoints taken" % num_checkpoints)
     sys.exit(code)
 
-def restoreSimpointCheckpoint():
-    exit_event = m5.simulate()
-    exit_cause = exit_event.getCause()
+def restoreSimpointCheckpoint(testsys):
+    runCPU(10000000,testsys.switch_cpus)
+    print("Warmed up, reset")
+    m5.stats.reset()
+    runCPU(100000000,testsys.switch_cpus)
+    print("DUMP stats")
+    m5.stats.dump()
+    sys.exit()
+    #exit_event = m5.simulate()
+    #exit_cause = exit_event.getCause()
 
-    if exit_cause == "simpoint starting point found":
-        print("Warmed up! Dumping and resetting stats!")
-        m5.stats.dump()
-        m5.stats.reset()
+    #if exit_cause == "simpoint starting point found":
+    #    print("Warmed up! Dumping and resetting stats!")
+    #    m5.stats.dump()
+    #    m5.stats.reset()
 
-        exit_event = m5.simulate()
-        exit_cause = exit_event.getCause()
+    #    exit_event = m5.simulate()
+    #    exit_cause = exit_event.getCause()
 
-        if exit_cause == "simpoint starting point found":
-            print("Done running SimPoint!")
-            sys.exit(exit_event.getCode())
+    #    if exit_cause == "simpoint starting point found":
+    #        print("Done running SimPoint!")
+    #        sys.exit(exit_event.getCode())
 
-    print('Exiting @ tick %i because %s' % (m5.curTick(), exit_cause))
-    sys.exit(exit_event.getCode())
+    #print('Exiting @ tick %i because %s' % (m5.curTick(), exit_cause))
+    #sys.exit(exit_event.getCode())
 
 def repeatSwitch(testsys, repeat_switch_cpu_list, maxtick, switch_freq):
     print("starting switch loop")
@@ -485,6 +492,9 @@ def run(options, root, testsys, cpu_class):
                 #ipdb.set_trace()
                 if options.repeat:
                     fast_repeat = options.fast_forward
+                elif options.take_simpoint_checkpoints:
+                    switch_cpus[i].max_insts_any_thread \
+                        = int(options.fast_forward)
                 else:
                     testsys.cpu[i].max_insts_any_thread \
                         = int(options.fast_forward)
@@ -519,6 +529,8 @@ def run(options, root, testsys, cpu_class):
 
         testsys.switch_cpus = switch_cpus
         switch_cpu_list = [(testsys.cpu[i], switch_cpus[i]) for i in range(np)]
+        switch_cpu_list_inv = [(switch_cpus[i],testsys.cpu[i]) \
+        for i in range(np)]
 
     if options.repeat_switch:
         switch_class = getCPUClass(options.cpu_type)[0]
@@ -737,7 +749,8 @@ def run(options, root, testsys, cpu_class):
     root.apply_config(options.param)
     ipdb.set_trace()
     m5.instantiate(checkpoint_dir)
-
+    if options.take_simpoint_checkpoints:
+        m5.simulate(1)
     # Initialization is complete.  If we're not in control of simulation
     # (that is, if we're a slave simulator acting as a component in another
     #  'master' simulator) then we're done here.  The other simulator will
@@ -921,11 +934,12 @@ def run(options, root, testsys, cpu_class):
 
     # Take SimPoint checkpoints
     elif options.take_simpoint_checkpoints != None:
+        m5.switchCpus(testsys,switch_cpu_list_inv)
         takeSimpointCheckpoints(simpoints, interval_length, cptdir, testsys)
 
     # Restore from SimPoint checkpoints
     elif options.restore_simpoint_checkpoint != None:
-        restoreSimpointCheckpoint()
+        restoreSimpointCheckpoint(testsys)
 
     else:
         if options.fast_forward or options.kernel_starting:
@@ -968,6 +982,11 @@ def runCPU(period, currentCPU, ctrl_cpu_index=0):
     exit_cause = exit_event.getCause()
     print(exit_cause)
     success = exit_cause.startswith("Max Insts")
+    while not success:
+        exit_event = m5.simulate()
+        exit_cause = exit_event.getCause()
+        print(exit_cause)
+        success = exit_cause.startswith("Max Insts")
     post_count = currentCPU[0].totalInsts()
     print("DEBUG: insts simed this interval %d"%(post_count - pri_count))
     return success, exit_cause
