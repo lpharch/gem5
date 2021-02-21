@@ -137,7 +137,7 @@ def findCptDir(options, cptdir, testsys):
     from os.path import isdir, exists
     from os import listdir
     import re
-    ipdb.set_trace()
+    #ipdb.set_trace()
     if not isdir(cptdir):
         fatal("checkpoint dir %s does not exist!", cptdir)
 
@@ -462,7 +462,7 @@ def run(options, root, testsys, cpu_class):
 
     if options.repeat_switch and options.take_checkpoints:
         fatal("Can't specify both --repeat-switch and --take-checkpoints")
-    ipdb.set_trace()
+    #ipdb.set_trace()
     # Setup global stat filtering.
     stat_root_simobjs = []
     for stat_root_str in options.stats_root:
@@ -747,7 +747,7 @@ def run(options, root, testsys, cpu_class):
     elif options.restore_manual:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     root.apply_config(options.param)
-    ipdb.set_trace()
+    #ipdb.set_trace()
     m5.instantiate(checkpoint_dir)
     if options.take_simpoint_checkpoints:
         m5.simulate(1)
