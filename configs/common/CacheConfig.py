@@ -48,12 +48,12 @@ from m5.objects import *
 from common.Caches import *
 from common import ObjectList
 
-def _get_hwp(hwp_option):
+def _get_hwp(hwp_option,_degree=4):
     if hwp_option == None:
         return NULL
 
     hwpClass = ObjectList.hwp_list.get(hwp_option)
-    return hwpClass()
+    return hwpClass(degree=_degree)
 
 def _get_cache_opts(level, options):
     opts = {}
@@ -67,8 +67,14 @@ def _get_cache_opts(level, options):
         opts['assoc'] = getattr(options, assoc_attr)
 
     prefetcher_attr = '{}_hwp_type'.format(level)
+    prefetcher_degree = '{}_hwp_degree'.format(level)
+    if not hasattr(options,prefetcher_degree):
+        prefetcher_degree=4
+    else:
+        prefetcher_degree=getattr(options,prefetcher_degree)
     if hasattr(options, prefetcher_attr):
-        opts['prefetcher'] = _get_hwp(getattr(options, prefetcher_attr))
+        opts['prefetcher'] = _get_hwp(getattr(options, prefetcher_attr),\
+        prefetcher_degree)
 
     return opts
 
