@@ -68,8 +68,10 @@ def _get_cache_opts(level, options):
 
     prefetcher_attr = '{}_hwp_type'.format(level)
     prefetcher_degree = '{}_hwp_degree'.format(level)
-    if getattr(options,prefetcher_degree):
+    if hasattr(options,prefetcher_degree):
         prefetcher_degree = getattr(options,prefetcher_degree)
+        if not prefetcher_degree:
+            prefetcher_degree = 4
     else:
         prefetcher_degree=4
     if hasattr(options, prefetcher_attr):
