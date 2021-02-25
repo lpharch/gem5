@@ -52,6 +52,7 @@
 #include "debug/CachePort.hh"
 #include "debug/CacheRepl.hh"
 #include "debug/CacheVerbose.hh"
+#include "debug/ShadowTag.hh"
 #include "debug/WQ.hh"
 #include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr.hh"
@@ -82,6 +83,8 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
       mshrQueue("MSHRs", p.mshrs, 0, p.demand_mshr_reserve), // see below
       writeBuffer("write buffer", p.write_buffers, p.mshrs), // see below
       tags(p.tags),
+      shadow_tags(p.shadow_tags),
+      shadow_tag_owner(p.shadow_tag_owner),
       compressor(p.compressor),
       prefetcher(p.prefetcher),
       writeAllocator(p.write_allocator),
@@ -123,6 +126,10 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     tempBlock = new TempCacheBlk(blkSize);
 
     tags->tagsInit();
+    if (shadow_tags){
+        shadow_tags->tagsInit();
+    }
+
     if (prefetcher)
         prefetcher->setCache(this);
 
@@ -370,6 +377,7 @@ BaseCache::recvTimingReq(PacketPtr pkt)
     // The latency charged is just the value set by the access() function.
     // In case of a hit we are neglecting response latency.
     // In case of a miss we are neglecting forward latency.
+    // clockEdge output absolute time
     Tick request_time = clockEdge(lat);
     // Here we reset the timing of the packet.
     pkt->headerDelay = pkt->payloadDelay = 0;
@@ -475,13 +483,25 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
     CacheBlk *blk = tags->findBlock(pkt->getAddr(), pkt->isSecure());
 
+    const bool shadowTagActivated = shadow_tags &&
+                                    pkt->req->coreId() == shadow_tag_owner;
+    CacheBlk *shadow_blk = shadowTagActivated ?
+                  shadow_tags->findBlock(pkt->getAddr(), pkt->isSecure()) :
+                  nullptr;
+
+    if (shadowTagActivated && !blk && shadow_blk) {
+        DPRINTF(ShadowTag, "Data exist in shadow tag but not normal tag \
+                            during fill\n");
+    }
+
     if (is_fill && !is_error) {
         DPRINTF(Cache, "Block for addr %#llx being updated in Cache\n",
                 pkt->getAddr());
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
-        blk = handleFill(pkt, blk, writebacks, allocate);
+        blk = handleFill(pkt, blk, writebacks, allocate,
+                         shadowTagActivated, shadow_blk);
         assert(blk != nullptr);
         ppFill->notify(pkt);
     }
@@ -496,6 +516,13 @@ BaseCache::recvTimingResp(PacketPtr pkt)
         // is no invalidation, we can promote targets that don't
         // require a writable copy
         mshr->promoteReadable();
+    }
+
+    if (shadowTagActivated && shadow_blk && shadow_blk->isValid() &&
+        pkt->isClean() &&
+        !pkt->isInvalidate()){
+            shadow_blk->setCoherenceBits(CacheBlk::ReadableBit);
+            //TODO: not sure how to deal with mshr here
     }
 
     if (blk && blk->isSet(CacheBlk::WritableBit) &&
@@ -1146,6 +1173,24 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     Cycles tag_latency(0);
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), tag_latency);
 
+    const bool shadowTagActivated = shadow_tags &&
+                                    pkt->req->coreId() == shadow_tag_owner;
+    CacheBlk* shadow_blk = nullptr;
+    if (shadowTagActivated) {
+        Cycles tmp;
+        shadow_blk = shadow_tags->accessBlock(pkt->getAddr(),
+                                              pkt->isSecure(),
+                                              tmp);
+        if (blk && !shadow_blk) {
+            stats.shadowMiss++;
+            DPRINTF(ShadowTag, "miss in shadow tag but hit in normal\n ");
+        }
+        else if (!blk && shadow_blk) {
+            stats.shadowHit++;
+            DPRINTF(ShadowTag, "hit in shadow tag but miss in normal\n ");
+        }
+    }
+
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");
 
@@ -1231,6 +1276,9 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // MSHR. As of now assume a mshr queue search takes as long as
             // a tag lookup for simplicity.
             return true;
+
+            //wq: ignore this situation for shadowtag for now (previous mshr
+            // is allocate by other cores)
         }
 
         const bool has_old_data = blk && blk->isValid();
@@ -1255,12 +1303,19 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 return false;
             }
         }
+        if (shadowTagActivated && !shadow_blk){
+            shadow_blk = allocateShadowBlock(pkt);
+            shadow_blk->setCoherenceBits(CacheBlk::ReadableBit);
+        }
 
         // only mark the block dirty if we got a writeback command,
         // and leave it as is for a clean writeback
         if (pkt->cmd == MemCmd::WritebackDirty) {
             // TODO: the coherent cache can assert that the dirty bit is set
             blk->setCoherenceBits(CacheBlk::DirtyBit);
+            if (shadowTagActivated){
+                shadow_blk->setCoherenceBits(CacheBlk::DirtyBit);
+            }
         }
         // if the packet does not have sharers, it is passing
         // writable, and we got the writeback in Modified or Exclusive
@@ -1268,9 +1323,12 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         if (!pkt->hasSharers()) {
             blk->setCoherenceBits(CacheBlk::WritableBit);
         }
+        //TODO: check whether to give writeable bit unconditional to shadow blk
+
         // nothing else to do; writeback doesn't expect response
         assert(!pkt->needsResponse());
 
+        // TODO: check this on shadowtag path
         updateBlockData(blk, pkt, has_old_data);
         DPRINTF(Cache, "%s new state is %s\n", __func__, blk->print());
         incHitCount(pkt);
@@ -1280,6 +1338,12 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // soon as the fill is done
         blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
             std::max(cyclesToTicks(tag_latency), (uint64_t)pkt->payloadDelay));
+        if (shadowTagActivated){
+            shadow_blk->setWhenReady(clockEdge(fillLatency) +
+                                     pkt->headerDelay + std::max(
+                                         cyclesToTicks(tag_latency),
+                                         (uint64_t)pkt->payloadDelay));
+        }
 
         return true;
     } else if (pkt->cmd == MemCmd::CleanEvict) {
@@ -1304,6 +1368,14 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // block immediately. The WriteClean transfers the ownership
         // of the block as well.
         assert(blkSize == pkt->getSize());
+
+        if (shadowTagActivated && !shadow_blk && !pkt->writeThrough()) {
+            shadow_blk = allocateShadowBlock(pkt);
+            if (!shadow_blk){
+                DPRINTF(ShadowTag, "Allocate blk in shadow tag failed\n");
+            }
+            shadow_blk->setCoherenceBits(CacheBlk::ReadableBit);
+        }
 
         const bool has_old_data = blk && blk->isValid();
         if (!blk) {
@@ -1342,12 +1414,17 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // TODO: the coherent cache can assert that the dirty bit is set
         if (!pkt->writeThrough()) {
             blk->setCoherenceBits(CacheBlk::DirtyBit);
+            if (shadowTagActivated) {
+                shadow_blk->setCoherenceBits(CacheBlk::DirtyBit);
+            }
         }
+
         // nothing else to do; writeback doesn't expect response
         assert(!pkt->needsResponse());
 
         updateBlockData(blk, pkt, has_old_data);
         DPRINTF(Cache, "%s new state is %s\n", __func__, blk->print());
+        // shadow tag don't need to update data (it don't have anyways)
 
         incHitCount(pkt);
 
@@ -1356,6 +1433,11 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // soon as the fill is done
         blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
             std::max(cyclesToTicks(tag_latency), (uint64_t)pkt->payloadDelay));
+
+        if (shadowTagActivated) {
+            shadow_blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay+
+            std::max(cyclesToTicks(tag_latency), (uint64_t)pkt->payloadDelay));
+        }
 
         // If this a write-through packet it will be sent to cache below
         return !pkt->writeThrough();
@@ -1414,7 +1496,9 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
 
 CacheBlk*
 BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                      bool allocate)
+                      bool allocate,
+                      bool shadowTagEnabled,
+                      CacheBlk *shadow_blk)
 {
     assert(pkt->isResponse());
     Addr addr = pkt->getAddr();
@@ -1428,15 +1512,17 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     assert(addr == pkt->getBlockAddr(blkSize));
     assert(!writeBuffer.findMatch(addr, is_secure));
 
-    if (!blk) {
+    if (!blk) { //common case
         // better have read new data...
         assert(pkt->hasData() || pkt->cmd == MemCmd::InvalidateResp);
 
         // need to do a replacement if allocating, otherwise we stick
         // with the temporary storage
+        // note allocateBlock lumped findVic and insert new tag
         blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
 
         if (!blk) {
+            DPRINTF(ShadowTag, "Normal tag not allocating perm block\n");
             // No replaceable block or a mostly exclusive
             // cache... just use temporary storage to complete the
             // current request and then get rid of it
@@ -1451,12 +1537,38 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         // don't want to lose that
     }
 
+    if (shadowTagEnabled && !shadow_blk){
+        if (!allocate){
+            DPRINTF(ShadowTag, "system skip shadowtag fill\n");
+        }
+
+        shadow_blk = allocate ? allocateShadowBlock(pkt) : nullptr;
+
+        if (shadow_blk){
+            DPRINTF(ShadowTag, "Fill the shadow tag once\n");
+            if (pkt->isRead()) {
+                assert(pkt->hasData());
+                assert(pkt->getSize() == blkSize);
+                pkt->writeDataToBlock(shadow_blk->data, blkSize);
+            }
+        } else {
+            DPRINTF(ShadowTag, "Fail to fill shadow tag\n");
+        }
+    }
+
+
     // Block is guaranteed to be valid at this point
     assert(blk->isValid());
     assert(blk->isSecure() == is_secure);
     assert(regenerateBlkAddr(blk) == addr);
 
     blk->setCoherenceBits(CacheBlk::ReadableBit);
+
+    if (shadowTagEnabled && shadow_blk){
+        shadow_blk->setCoherenceBits(CacheBlk::ReadableBit);
+        //exclusive mode should have write permission as well
+        //shadow_blk->setCoherenceBits(CacheBlk::WritableBit);
+    }
 
     // sanity check for whole-line writes, which should always be
     // marked as writable as part of the fill, and then later marked
@@ -1465,6 +1577,10 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         assert(!pkt->hasSharers());
     }
 
+    // TODO: a bit uncertain about the logic below this point
+    // I know most of this is unrelevant when dealing with shared LLC
+    // but better double check
+
     // here we deal with setting the appropriate state of the line,
     // and we start by looking at the hasSharers flag, and ignore the
     // cacheResponding flag (normally signalling dirty data) if the
@@ -1472,6 +1588,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     // (dirty but not writable), and always ends up being either
     // Shared, Exclusive or Modified, see Packet::setCacheResponding
     // for more details
+
     if (!pkt->hasSharers()) {
         // we could get a writable line from memory (rather than a
         // cache) even in a read-only cache, note that we set this bit
@@ -1489,6 +1606,9 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                           "in read-only cache %s\n", name());
 
         }
+
+        //TODO: how should update these bits for shadowtag, would it ever occur
+        //when entry in LLC need these bits?
     }
 
     DPRINTF(Cache, "Block addr %#llx (%s) moving from %s to %s\n",
@@ -1502,14 +1622,74 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         assert(pkt->getSize() == blkSize);
 
         updateBlockData(blk, pkt, has_old_data);
+
+        //shadowtag filled above
     }
     // The block will be ready when the payload arrives and the fill is done
     blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
                       pkt->payloadDelay);
+    /*
+    if (shadowTagEnabled){
+        shadow_blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
+                                 pkt->payloadDelay);
+    }
+    */
 
     return blk;
 }
 
+CacheBlk*
+BaseCache::allocateShadowBlock(const PacketPtr pkt)
+{
+    // Get address
+    const Addr addr = pkt->getAddr();
+
+    // Get secure bit
+    const bool is_secure = pkt->isSecure();
+
+    // Block size and compression related access latency. Only relevant if
+    // using a compressor, otherwise there is no extra delay, and the block
+    // is fully sized
+    std::size_t blk_size_bits = blkSize*8;
+    //Cycles compression_lat = Cycles(0);
+    //Cycles decompression_lat = Cycles(0);
+
+    assert(shadow_tags && pkt->req->coreId() == shadow_tag_owner);
+    std::vector<CacheBlk*> tmp;
+    CacheBlk* shadow_victim = shadow_tags->findVictim(addr, is_secure,
+                                                      blk_size_bits,
+                                                      tmp);
+    for (auto& blk : tmp) {
+        if (blk->isValid()) invalidateBlock(blk);
+    }
+
+    if (shadow_victim){
+        DPRINTF(ShadowTag, "Replacement in shadowTag: %s\n",
+                shadow_victim->print());
+        shadow_tags->insertBlock(pkt, shadow_victim);
+        //TODO: check if writeback can be entire skipped (may need to propogate
+        //coherence info downwards)
+        //TODO: set coherence bits for all cases: base.cc:1262
+    }
+    else {
+        DPRINTF(ShadowTag, "Fail to find replacement victim in shadowTag\n");
+    }
+
+    //// Try to evict blocks; if it fails, give up on allocation
+    //if (!handleEvictions(evict_blks, writebacks)) {
+    //    return nullptr;
+    //}
+
+
+    //// If using a compressor, set compression data. This must be done after
+    //// insertion, as the compression bit may be set.
+    //if (compressor) {
+    //    compressor->setSizeBits(victim, blk_size_bits);
+    //    compressor->setDecompressionLatency(victim, decompression_lat);
+    //}
+
+    return shadow_victim;
+}
 CacheBlk*
 BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 {
@@ -1537,7 +1717,7 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
         blk_size_bits = comp_data->getSizeBits();
     }
 
-    // Find replacement victim
+    // Find replacement victim, the victim blks are not updated yet
     std::vector<CacheBlk*> evict_blks;
     CacheBlk *victim = tags->findVictim(addr, is_secure, blk_size_bits,
                                         evict_blks);
@@ -1549,7 +1729,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // Print victim block's information
     DPRINTF(CacheRepl, "Replacement victim: %s\n", victim->print());
 
-    // Try to evict blocks; if it fails, give up on allocation
+    // Try to evict blocks; if it fails (the victim is some mshr's tgt),
+    // give up on allocation
     if (!handleEvictions(evict_blks, writebacks)) {
         return nullptr;
     }
@@ -2172,6 +2353,8 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
 
     dataExpansions(this, "data_expansions", "number of data expansions"),
     dataContractions(this, "data_contractions", "number of data contractions"),
+    shadowHit(this, "shadowTag_hit", "shadowTag hit normal tags miss"),
+    shadowMiss(this, "shadowTag_miss", "shadowTag miss normal tag hit"),
     cmd(MemCmd::NUM_MEM_CMDS)
 {
     for (int idx = 0; idx < MemCmd::NUM_MEM_CMDS; ++idx)
@@ -2392,6 +2575,8 @@ BaseCache::CacheStats::regStats()
 
     dataExpansions.flags(nozero | nonan);
     dataContractions.flags(nozero | nonan);
+    shadowHit.flags(nonan);
+    shadowMiss.flags(nonan);
 }
 
 void
@@ -2575,6 +2760,7 @@ BaseCache::CacheReqPacketQueue::sendDeferredPacket()
     }
 }
 
+//wq: pay attention to this instantiation list's dep relation
 BaseCache::MemSidePort::MemSidePort(const std::string &_name,
                                     BaseCache *_cache,
                                     const std::string &_label)

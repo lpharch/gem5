@@ -219,6 +219,7 @@ class CacheBlk : public TaggedEntry
     {
         assert(isValid());
         coherence |= bits;
+        //you expect one day gem5 can go multi-threaded? haha
     }
 
     /**

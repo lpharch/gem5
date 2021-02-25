@@ -99,6 +99,8 @@ class BaseCache(ClockedObject):
          "Notify the hardware prefetcher on every access (not just misses)")
 
     tags = Param.BaseTags(BaseSetAssoc(), "Tag store")
+    shadow_tags = Param.BaseTags(NULL, "Shadow tag store")
+    shadow_tag_owner = Param.Unsigned(0, "CPU that owns a shadow tag")
     replacement_policy = Param.BaseReplacementPolicy(LRURP(),
         "Replacement policy")
 

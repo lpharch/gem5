@@ -27,7 +27,7 @@
 # Authors: Jason Lowe-Power, Ayaz Akram, Hoa Nguyen
 # Modified by Wenqi Yin
 
-""" Script to run a Custom workloads and sample performance in full system
+""" Script to run a SPEC workloads and sample performance in full system
     mode with gem5.
 
     The script control the simulation to boot linux, fast-forward initial
@@ -99,6 +99,10 @@ def parse_arguments():
     parser.add_argument("--time_in_inst", default = False,
             action = "store_true",
             help = "Use insts as unit of time, default is tick")
+    parser.add_argument("--detailed_warmup", default = False,
+            action = "store_true",
+            help = "Use O3CPU for warming up, instead of atomic CPU")
+
 
     #parser.add_argument("-d", "--ckpt-dir", type = str,
     #                    default = "checkpoints",
@@ -199,6 +203,7 @@ if __name__ == "__m5_main__":
     num_sample = args.numSamples
     #cptdir = args.ckpt_dir
     tick_mode = not args.time_in_inst
+    detailed_warmup = args.detailed_warmup
 
     output_dir = os.path.join(m5.options.outdir, "ckptCollection")
 
@@ -235,14 +240,14 @@ if __name__ == "__m5_main__":
     if not success:
         print("Error while booting linux: {}".format(exit_cause))
         exit(1)
-    print("Booting done")
+    print('\033[32m' + "Booting done" + '\033[m')
 
     #skip initial . Precond: kvmcpu
     success, exit_cause = runCpu(skip_period, tick_mode, system.cpu)
     if not success:
         print("Error while skipping initial cycles: {}".format(exit_cause))
         exit(1)
-    print("Initial skip done")
+    print('\033[32m' + "Initial skip done" + '\033[m')
 
 
     ## reset stats
@@ -257,17 +262,26 @@ if __name__ == "__m5_main__":
 
     # Main Sampling Loop, precond: kvmcpu
     for i in range(num_sample):
-        system.switchCpus(system.cpu, system.atomicCpu)
-        print("Start sample " + str(i) +", warming up")
-        success,exit_cause = runCpu(warmUp_period, tick_mode, system.atomicCpu)
+        print('\033[32m' + "Start sample " + str(i) +", warming up" + '\033[m')
+        if detailed_warmup:
+            system.switchCpus(system.cpu, system.detailed_cpu)
+            success,exit_cause = runCpu(warmUp_period,
+                                        tick_mode,
+                                        system.detailed_cpu)
+        else:
+            system.switchCpus(system.cpu, system.atomicCpu)
+            success,exit_cause = runCpu(warmUp_period, tick_mode,
+                                        system.atomicCpu)
+
         if not success:
             print("Error while warmup simulation: {}".format(exit_cause))
             exit(1)
 
 
-        print("warmup done, entering detailed sim")
+        print('\033[32m' + "warmup done, entering detailed sim" + '\033[m')
 
-        system.switchCpus(system.atomicCpu, system.detailed_cpu)
+        if not detailed_warmup:
+            system.switchCpus(system.atomicCpu, system.detailed_cpu)
         m5.stats.reset()
         success, exit_cause = runCpu(sim_period, tick_mode,
                                      system.detailed_cpu)
@@ -276,7 +290,7 @@ if __name__ == "__m5_main__":
             exit(1)
         m5.stats.dump()
 
-        print("Detailed sim done")
+        print('\033[32m' + "Detailed sim done" + '\033[m')
 
         system.switchCpus(system.detailed_cpu, system.cpu)
         success, exit_cause = runCpu(sample_interval, tick_mode, system.cpu)
@@ -284,7 +298,7 @@ if __name__ == "__m5_main__":
             print("Error while FF between samples: {}".format(exit_cause))
             exit(1)
 
-    print("Simulation Done, Exiting")
+    print('\033[33m' + "Simulation Done, Exiting" + '\033[m')
 
 
 

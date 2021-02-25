@@ -341,6 +341,12 @@ class BaseCache : public ClockedObject
     /** Tag and data Storage */
     BaseTags *tags;
 
+    /** Only one shadow tag array */
+    BaseTags *shadow_tags;
+
+    /** which CPU owns the shadowTag */
+    uint shadow_tag_owner;
+
     /** Compression method being used. */
     Compressor::Base* compressor;
 
@@ -386,6 +392,12 @@ class BaseCache : public ClockedObject
      * when we want to avoid allocation (e.g., exclusive caches)
      */
     TempCacheBlk *tempBlock;
+
+    /**
+     * @brief Temp block for shadow tag array
+     *
+     */
+    TempCacheBlk *tempShadowBlock;
 
     /**
      * Upstream caches need this packet until true is returned, so
@@ -774,10 +786,15 @@ class BaseCache : public ClockedObject
      * @param blk The cache block if it already exists.
      * @param writebacks List for any writebacks that need to be performed.
      * @param allocate Whether to allocate a block or use the temp block
+     * @param shadowTagEnabled whether this cache contains shadow tags,
+     *                          default false
+     * @param shadow_blk the shadow blk if exist
      * @return Pointer to the new cache block.
      */
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
-                         PacketList &writebacks, bool allocate);
+                         PacketList &writebacks, bool allocate,
+                         bool shadowTagEnabled = false,
+                         CacheBlk* shadow_blk = nullptr);
 
     /**
      * Allocate a new block and perform any necessary writebacks
@@ -792,6 +809,14 @@ class BaseCache : public ClockedObject
      * @return the allocated block
      */
     CacheBlk *allocateBlock(const PacketPtr pkt, PacketList &writebacks);
+
+    /**
+     * @brief allocate a blk in shadow tag array
+     *
+     * @param pkt
+     * @return CacheBlk*
+     */
+    CacheBlk *allocateShadowBlock(const PacketPtr pkt);
     /**
      * Evict a cache block.
      *
@@ -1128,6 +1153,9 @@ class BaseCache : public ClockedObject
          * factor improved).
          */
         Stats::Scalar dataContractions;
+
+        Stats::Scalar shadowHit;
+        Stats::Scalar shadowMiss;
 
         /** Per-command statistics */
         std::vector<std::unique_ptr<CacheCmdStats>> cmd;

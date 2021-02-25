@@ -110,6 +110,7 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     stats.occupancies[requestor_id]++;
 
     // Insert block with tag, src requestor id and task id
+    // note this only rewrite the tag, doesn't update the data
     blk->insert(extractTag(pkt->getAddr()), pkt->isSecure(), requestor_id,
                 pkt->req->taskId(), pkt->req->coreId());
 

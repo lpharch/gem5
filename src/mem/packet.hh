@@ -92,6 +92,10 @@ class MemCmd
                                //data below
         CleanEvict,            //evict clean data, not simply dropping cuz
                                //want to keep it in cache below
+
+                            //Note: diff between WritebackClean and cleanEvict
+                               //is the latter don't have data, simply notify
+                               //downstream some lines are dropped
         SoftPFReq,
         SoftPFExReq,
         HardPFReq,

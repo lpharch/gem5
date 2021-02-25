@@ -36,5 +36,12 @@
   After the trace is collected after the simulation, a python script is provided to parse the trace and construct an internal representation. Then various queries can be conducted like the global ratio of self-eviction or cross-eviction, per-core evictions, etc. The python script will run in interactive mode and users can query custom metrics as well. 
 
 
+  \subsection assumption Assumption in implementation
+
+  1. shadow tag should always only be enabled for shared LLC. The behavior for enabling shadowtag for private tag is not tested.
+  
+  2. the shadow tag is implemented as a passive device, in other words, it won't initiate any changes in the system. This implementation has couple implications:
+    * when normal cache hit but shadow cache miss (this should be rare case). No request is issued because of that miss. 
+    * the impact of shadow cache is not simulated. E.g. on prefetcher, the timing diff (for example, for normal cache there may be a mshr full or cache blk, which won't occur under shadow cache, and this timing difference further lead to hit/miss changes later in time)
 
 */
