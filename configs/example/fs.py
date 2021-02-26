@@ -354,8 +354,7 @@ else:
     print("Error I don't know how to create more than 2 systems.")
     sys.exit(1)
 
-if options.kernel_starting :
-    root.sim_quantum = int(1e9)
+root.sim_quantum = int(1e9)
 
 if options.timesync:
     root.time_sync_enable = True

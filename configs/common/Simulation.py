@@ -569,6 +569,10 @@ def run(options, root, testsys, cpu_class):
 
 #-----------------Added----------------------------------------
 
+    for i,cpu in enumerate(testsys.cpu):
+        for obj in cpu.descendants():
+            obj.eventq_index = 0
+        cpu.eventq_index = i+1
     if options.kernel_starting:
         progkvm_cpu = [X86KvmCPU(switched_out=True, cpu_id=(i))
                        for i in range(np)]
@@ -874,7 +878,7 @@ def run(options, root, testsys, cpu_class):
 
 
 
-
+        ipdb.set_trace()
         if options.standard_switch:
             print("Switch at instruction count:%s" %
                     str(testsys.cpu[0].max_insts_any_thread))
@@ -885,7 +889,11 @@ def run(options, root, testsys, cpu_class):
             print("Switch at instruction count:%s" %
                     str(testsys.cpu[0].max_insts_any_thread))
             print("Start FF")
-            exit_event = m5.simulate()
+            flagT = True
+            while flagT:
+                exit_event = m5.simulate()
+                flagT = (exit_event.getCause()!=\
+                        "m5_exit instruction encountered")
         else:
             print("Switch at curTick count:%s" % str(10000))
             exit_event = m5.simulate(10000)

@@ -76,7 +76,7 @@ from m5.objects import *
 
 import argparse
 import pdb
-import ipdb
+#import ipdb
 
 from system import MySystem
 
@@ -228,7 +228,7 @@ if __name__ == "__m5_main__":
 
     # instantiate all of the objects we've created above
     m5.instantiate()
-    ipdb.set_trace()
+    pdb.set_trace()
     # booting linux. Precond: kvmcpu
     exit_event = m5.simulate()
     exit_cause = exit_event.getCause()
