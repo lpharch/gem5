@@ -989,13 +989,10 @@ def runCPU(period, currentCPU, ctrl_cpu_index=0):
         for i in range(_size):
             insts.append(currentCPU[i].totalInsts())
 
-        currentCPU[ctrl_cpu_index].scheduleInstStop(0,period,
+        currentCPU[0].scheduleInstStop(0,period,
                 "Max Insts readed CPU %d"%(ctrl_cpu_index))
-
-        exit_event = m5.simulate()
-        exit_cause = exit_event.getCause()
-        print(exit_cause)
-        success = exit_cause.startswith("Max Insts")
+        success = False
+        #ipdb.set_trace()
         while not success:
             exit_event = m5.simulate()
             exit_cause = exit_event.getCause()
@@ -1003,13 +1000,13 @@ def runCPU(period, currentCPU, ctrl_cpu_index=0):
             success = exit_cause.startswith("Max Insts")
             for i in range(_size):
                 if success and currentCPU[i].totalInsts()-insts[i]<period:
-                    currentCPU[i].scheduleInstStop(0,period,
+                    currentCPU[i].scheduleInstStop(0,totalInsts()-insts[i],
                             "Max Insts readed CPU %d"%(ctrl_cpu_index))
                     success = False
                     break
         for  i in range(_size):
             print("DEBUG: insts simed this interval %d"%\
-            (insts[i] - currentCPU[i].totalInsts()))
+            (currentCPU[i].totalInsts()-insts[i]))
         return success, exit_cause
 
     currentCPU[ctrl_cpu_index].scheduleInstStop(0,period,
