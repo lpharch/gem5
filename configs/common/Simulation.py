@@ -392,10 +392,10 @@ def takeSimpointCheckpoints(simpoints, interval_length, cptdir, testsys):
     sys.exit(code)
 
 def restoreSimpointCheckpoint(testsys):
-    runCPU(10000000,testsys.switch_cpus)
+    runCPU(10000000,testsys.switch_cpus,-1)
     print("Warmed up, reset")
     m5.stats.reset()
-    runCPU(100000000,testsys.switch_cpus)
+    runCPU(100000000,testsys.switch_cpus,-1)
     print("DUMP stats")
     m5.stats.dump()
     sys.exit()
@@ -878,7 +878,7 @@ def run(options, root, testsys, cpu_class):
 
 
 
-        ipdb.set_trace()
+        #ipdb.set_trace()
         if options.standard_switch:
             print("Switch at instruction count:%s" %
                     str(testsys.cpu[0].max_insts_any_thread))
@@ -983,6 +983,35 @@ def run(options, root, testsys, cpu_class):
 
 
 def runCPU(period, currentCPU, ctrl_cpu_index=0):
+    if ctrl_cpu_index == -1:
+        _size = len(currentCPU)
+        insts = []
+        for i in range(_size):
+            insts.append(currentCPU[i].totalInsts())
+
+        currentCPU[ctrl_cpu_index].scheduleInstStop(0,period,
+                "Max Insts readed CPU %d"%(ctrl_cpu_index))
+
+        exit_event = m5.simulate()
+        exit_cause = exit_event.getCause()
+        print(exit_cause)
+        success = exit_cause.startswith("Max Insts")
+        while not success:
+            exit_event = m5.simulate()
+            exit_cause = exit_event.getCause()
+            print(exit_cause)
+            success = exit_cause.startswith("Max Insts")
+            for i in range(_size):
+                if success and currentCPU[i].totalInsts()-insts[i]<period:
+                    currentCPU[i].scheduleInstStop(0,period,
+                            "Max Insts readed CPU %d"%(ctrl_cpu_index))
+                    success = False
+                    break
+        for  i in range(_size):
+            print("DEBUG: insts simed this interval %d"%\
+            (insts[i] - currentCPU[i].totalInsts()))
+        return success, exit_cause
+
     currentCPU[ctrl_cpu_index].scheduleInstStop(0,period,
             "Max Insts readed CPU %d"%(ctrl_cpu_index))
     pri_count = currentCPU[0].totalInsts()
