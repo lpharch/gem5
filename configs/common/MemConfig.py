@@ -40,7 +40,7 @@ import m5.objects
 from common import ObjectList
 from common import HMC
 
-import ipdb
+#import ipdb
 
 def create_mem_intf(intf, r, i, nbr_mem_ctrls, intlv_bits, intlv_size,
                     xor_low_bit):

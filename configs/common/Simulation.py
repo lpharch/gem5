@@ -182,9 +182,9 @@ def findCptDir(options, cptdir, testsys):
         simpoint_start_insts = []
         simpoint_start_insts.append(warmup_length)
         simpoint_start_insts.append(warmup_length + interval_length)
-        testsys.cpu[0].simpoint_start_insts = simpoint_start_insts
-        if testsys.switch_cpus != None:
-            testsys.switch_cpus[0].simpoint_start_insts = simpoint_start_insts
+        #testsys.cpu[0].simpoint_start_insts = simpoint_start_insts
+        #if testsys.switch_cpus != None:
+        #    testsys.switch_cpus[0].simpoint_start_insts = simpoint_start_insts
 
         print("Resuming from SimPoint", end=' ')
         print("#%d, start_inst:%d, weight:%f, interval:%d, warmup:%d" %
@@ -1000,8 +1000,11 @@ def runCPU(period, currentCPU, ctrl_cpu_index=0):
             success = exit_cause.startswith("Max Insts")
             for i in range(_size):
                 if success and currentCPU[i].totalInsts()-insts[i]<period:
-                    currentCPU[i].scheduleInstStop(0,totalInsts()-insts[i],
+                    currentCPU[i].scheduleInstStop(0,\
+                    currentCPU[i].totalInsts()-insts[i],
                             "Max Insts readed CPU %d"%(ctrl_cpu_index))
+                    print("Need %d more instructions in CPU%d"%
+                            (currentCPU[i].totalInsts()-insts[i],i))
                     success = False
                     break
         for  i in range(_size):
