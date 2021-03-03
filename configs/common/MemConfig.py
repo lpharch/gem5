@@ -40,7 +40,7 @@ import m5.objects
 from common import ObjectList
 from common import HMC
 
-#import ipdb
+import ipdb
 
 def create_mem_intf(intf, r, i, nbr_mem_ctrls, intlv_bits, intlv_size,
                     xor_low_bit):
@@ -234,7 +234,7 @@ def config_mem(options, system):
                     mem_ctrl = m5.objects.SimpleMemory()
                 elif opt_mem_type =="DRAMsim3":
                     mem_ctrl = m5.objects.DRAMsim3()
-                    mem_ctrl.range='8GB'
+                    #mem_ctrl.range='8GB'
                 else:
                     mem_ctrl = m5.objects.MemCtrl()
 

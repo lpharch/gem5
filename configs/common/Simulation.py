@@ -392,10 +392,10 @@ def takeSimpointCheckpoints(simpoints, interval_length, cptdir, testsys):
     sys.exit(code)
 
 def restoreSimpointCheckpoint(testsys):
-    runCPU(10000000,testsys.switch_cpus,-1)
+    runCPU(10000000,testsys.switch_cpus,0)
     print("Warmed up, reset")
     m5.stats.reset()
-    runCPU(100000000,testsys.switch_cpus,-1)
+    runCPU(100000000,testsys.switch_cpus,0)
     print("DUMP stats")
     m5.stats.dump()
     sys.exit()
