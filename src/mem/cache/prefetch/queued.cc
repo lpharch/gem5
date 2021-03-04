@@ -49,6 +49,7 @@
 
 namespace Prefetcher {
 
+//wq: add coreId here
 void
 Queued::DeferredPacket::createPkt(Addr paddr, unsigned blk_size,
                                             RequestorID requestor_id,

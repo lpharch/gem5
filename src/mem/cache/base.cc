@@ -500,6 +500,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
+        //also fills shadow blk
         blk = handleFill(pkt, blk, writebacks, allocate,
                          shadowTagActivated, shadow_blk);
         assert(blk != nullptr);
@@ -1594,6 +1595,9 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         // cache) even in a read-only cache, note that we set this bit
         // even for a read-only cache, possibly revisit this decision
         blk->setCoherenceBits(CacheBlk::WritableBit);
+        if (shadowTagEnabled && shadow_blk) {
+            shadow_blk->setCoherenceBits(CacheBlk::WritableBit);
+        }
 
         // check if we got this via cache-to-cache transfer (i.e., from a
         // cache that had the block in Modified or Owned state)
@@ -1605,10 +1609,13 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             chatty_assert(!isReadOnly, "Should never see dirty snoop response "
                           "in read-only cache %s\n", name());
 
+            // WQ: the protocol implemented here is bit weired,
+            // if get replie from M/O, a writeback to mem should
+            // happen as well
+            if (shadowTagEnabled && shadow_blk){
+                blk->setCoherenceBits(CacheBlk::DirtyBit);
+            }
         }
-
-        //TODO: how should update these bits for shadowtag, would it ever occur
-        //when entry in LLC need these bits?
     }
 
     DPRINTF(Cache, "Block addr %#llx (%s) moving from %s to %s\n",
@@ -1628,12 +1635,10 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
     // The block will be ready when the payload arrives and the fill is done
     blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
                       pkt->payloadDelay);
-    /*
-    if (shadowTagEnabled){
+    if (shadowTagEnabled && shadow_blk){
         shadow_blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
                                  pkt->payloadDelay);
     }
-    */
 
     return blk;
 }

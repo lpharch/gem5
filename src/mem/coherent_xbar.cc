@@ -710,6 +710,9 @@ CoherentXBar::forwardTiming(PacketPtr pkt, PortID exclude_cpu_side_port_id,
         if (exclude_cpu_side_port_id == InvalidPortID ||
             p->getId() != exclude_cpu_side_port_id) {
             // cache is not allowed to refuse snoop
+            // WQ: TODO: double check looks like there is no
+            // timing involved here, immediately call
+            // into the recvTimingSnoop funcs of cache above
             p->sendTimingSnoopReq(pkt);
             fanout++;
         }
