@@ -40,6 +40,7 @@
 
 #include "mem/abstract_mem.hh"
 
+#include <csignal>
 #include <vector>
 
 #include "arch/locked_mem.hh"

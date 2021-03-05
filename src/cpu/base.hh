@@ -214,7 +214,7 @@ class BaseCPU : public ClockedObject
      */
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
-
+    Counter desired_insts = 0;
     /** Get cpu task id */
     uint32_t taskId() const { return _taskId; }
     /** Set cpu task id */

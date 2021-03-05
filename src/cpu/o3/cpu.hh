@@ -122,6 +122,7 @@ class FullO3CPU : public BaseO3CPU
 
     /** Overall CPU status. */
     Status _status;
+    //Counter desired_insts;
 
   private:
 

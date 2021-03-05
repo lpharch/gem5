@@ -392,10 +392,10 @@ def takeSimpointCheckpoints(simpoints, interval_length, cptdir, testsys):
     sys.exit(code)
 
 def restoreSimpointCheckpoint(testsys):
-    runCPU(10000000,testsys.switch_cpus,0)
+    runCPU(10000000,testsys.switch_cpus,-1)
     print("Warmed up, reset")
     m5.stats.reset()
-    runCPU(100000000,testsys.switch_cpus,0)
+    runCPU(100000000,testsys.switch_cpus,-1)
     print("DUMP stats")
     m5.stats.dump()
     sys.exit()
@@ -988,25 +988,16 @@ def runCPU(period, currentCPU, ctrl_cpu_index=0):
         insts = []
         for i in range(_size):
             insts.append(currentCPU[i].totalInsts())
-
-        currentCPU[0].scheduleInstStop(0,period,
-                "Max Insts readed CPU %d"%(ctrl_cpu_index))
-        success = False
-        #ipdb.set_trace()
-        while not success:
+            currentCPU[i].scheduleInstStop(0,period,
+                    "Max Insts readed CPU %d"%(i))
+        cnt = 0
+        while cnt < _size:
             exit_event = m5.simulate()
             exit_cause = exit_event.getCause()
             print(exit_cause)
             success = exit_cause.startswith("Max Insts")
-            for i in range(_size):
-                if success and currentCPU[i].totalInsts()-insts[i]<period:
-                    currentCPU[i].scheduleInstStop(0,\
-                    currentCPU[i].totalInsts()-insts[i],
-                            "Max Insts readed CPU %d"%(ctrl_cpu_index))
-                    print("Need %d more instructions in CPU%d"%
-                            (currentCPU[i].totalInsts()-insts[i],i))
-                    success = False
-                    break
+            if success:
+                cnt = cnt+1
         for  i in range(_size):
             print("DEBUG: insts simed this interval %d"%\
             (currentCPU[i].totalInsts()-insts[i]))

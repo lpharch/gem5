@@ -120,16 +120,16 @@ class DRAMsim3 : public AbstractMemory
      * done so that we can return the right packet on completion from
      * DRAMSim.
      */
-    std::unordered_map<Addr, std::queue<PacketPtr> > outstandingReads;
-    std::unordered_map<Addr, std::queue<PacketPtr> > outstandingWrites;
+    static std::unordered_map<Addr, std::queue<PacketPtr> > outstandingReads;
+    static std::unordered_map<Addr, std::queue<PacketPtr> > outstandingWrites;
 
     /**
      * Count the number of outstanding transactions so that we can
      * block any further requests until there is space in DRAMsim3 and
      * the sending queue we need to buffer the response packets.
      */
-    unsigned int nbrOutstandingReads;
-    unsigned int nbrOutstandingWrites;
+    static unsigned int nbrOutstandingReads;
+    static unsigned int nbrOutstandingWrites;
 
     /**
      * Queue to hold response packets until we can send them
