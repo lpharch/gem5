@@ -498,8 +498,9 @@ FullO3CPU<Impl>::tick()
 //    activity = false;
 
     //Tick each of the stages
-    fetch.tick();
-
+    if (desired_insts > totalInsts()) {
+        fetch.tick();
+    }
     decode.tick();
 
     rename.tick();
