@@ -672,6 +672,13 @@ BaseCPU::scheduleInstStop(ThreadID tid, Counter insts, const char *cause)
     threadContexts[tid]->scheduleInstCountEvent(event, now + insts);
 }
 
+void
+BaseCPU::setMaxInstStop(ThreadID tid, Counter insts){
+    const Tick now(getCurrentInstCount(tid));
+    desired_insts = now+insts+1;
+    printf("Instructions stops for: %ld\n\n\n\n\n",desired_insts);
+}
+
 Tick
 BaseCPU::getCurrentInstCount(ThreadID tid)
 {

@@ -42,6 +42,8 @@
 
 #include "cpu/o3/cpu.hh"
 
+#include <csignal>
+
 #include "arch/generic/traits.hh"
 #include "config/the_isa.hh"
 #include "cpu/activity.hh"
@@ -497,10 +499,7 @@ FullO3CPU<Impl>::tick()
 
 //    activity = false;
 
-    //Tick each of the stages
-    if (desired_insts > totalInsts()) {
-        fetch.tick();
-    }
+    fetch.tick(desired_insts<=totalInsts());
     decode.tick();
 
     rename.tick();

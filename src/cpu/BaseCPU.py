@@ -99,6 +99,7 @@ class BaseCPU(ClockedObject):
         PyBindMethod("flushTLBs"),
         PyBindMethod("totalInsts"),
         PyBindMethod("scheduleInstStop"),
+        PyBindMethod("setMaxInstStop"),
         PyBindMethod("getCurrentInstCount"),
     ]
 

@@ -986,18 +986,37 @@ def runCPU(period, currentCPU, ctrl_cpu_index=0):
     if ctrl_cpu_index == -1:
         _size = len(currentCPU)
         insts = []
+        setflag = False
         for i in range(_size):
             insts.append(currentCPU[i].totalInsts())
-            currentCPU[i].scheduleInstStop(0,period,
+            if not setflag :
+                currentCPU[i].scheduleInstStop(0,period,
                        "Max Insts readed CPU %d"%(i))
+                setflag = True
+            else:
+                currentCPU[i].setMaxInstStop(0,period)
         cnt = 0
+        #ipdb.set_trace()
         while cnt < _size:
+            setflag = False
             exit_event = m5.simulate()
             exit_cause = exit_event.getCause()
             print(exit_cause)
             success = exit_cause.startswith("Max Insts")
-            if success:
-                cnt = cnt+1
+            if not success : continue
+            cnt = 0
+            for i in range(_size):
+                remainder = period -(currentCPU[i].totalInsts()-insts[i])
+                if remainder <= 0:
+                    cnt+=1
+                elif not setflag:
+                    currentCPU[i].scheduleInstStop(0,remainder,
+                       "Max Insts readed CPU %d"%(i))
+                    setflag = True
+
+                print("DEBUG: cpu %d: insts simed this interval %d"%\
+                (i,currentCPU[i].totalInsts()-insts[i]))
+
         for  i in range(_size):
             print("DEBUG: insts simed this interval %d"%\
             (currentCPU[i].totalInsts()-insts[i]))

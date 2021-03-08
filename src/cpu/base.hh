@@ -454,6 +454,7 @@ class BaseCPU : public ClockedObject
      */
     void scheduleInstStop(ThreadID tid, Counter insts, const char *cause);
 
+    void setMaxInstStop(ThreadID tid, Counter insts);
     /**
      * Get the number of instructions executed by the specified thread
      * on this CPU. Used by Python to control simulation.

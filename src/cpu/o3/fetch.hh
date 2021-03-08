@@ -353,7 +353,7 @@ class DefaultFetch
     /** Ticks the fetch stage, processing all inputs signals and fetching
      * as many instructions as possible.
      */
-    void tick();
+    void tick(bool reach_max=false);
 
     /** Checks all input signals and updates the status as necessary.
      *  @return: Returns if the status has changed due to input signals.
@@ -365,7 +365,7 @@ class DefaultFetch
      * @param status_change fetch() sets this variable if there was a status
      * change (ie switching to IcacheMissStall).
      */
-    void fetch(bool &status_change);
+    void fetch(bool &status_change,bool reach_max=false);
 
     /** Align a PC to the start of a fetch buffer block. */
     Addr fetchBufferAlignPC(Addr addr)

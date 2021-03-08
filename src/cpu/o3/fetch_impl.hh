@@ -858,7 +858,7 @@ DefaultFetch<Impl>::squash(const TheISA::PCState &newPC,
 
 template <class Impl>
 void
-DefaultFetch<Impl>::tick()
+DefaultFetch<Impl>::tick(bool reach_max)
 {
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
@@ -894,7 +894,7 @@ DefaultFetch<Impl>::tick()
     for (threadFetched = 0; threadFetched < numFetchingThreads;
          threadFetched++) {
         // Fetch each of the actively fetching threads.
-        fetch(status_change);
+        fetch(status_change,reach_max);
     }
 
     // Record number of instructions fetched this cycle for distribution.
@@ -1117,7 +1117,7 @@ DefaultFetch<Impl>::buildInst(ThreadID tid, StaticInstPtr staticInst,
 
 template<class Impl>
 void
-DefaultFetch<Impl>::fetch(bool &status_change)
+DefaultFetch<Impl>::fetch(bool &status_change,bool reach_max)
 {
     //////////////////////////////////////////
     // Start actual fetch
@@ -1150,12 +1150,12 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     // If returning from the delay of a cache miss, then update the status
     // to running, otherwise do the cache access.  Possibly move this up
     // to tick() function.
-    if (fetchStatus[tid] == IcacheAccessComplete) {
+    if (fetchStatus[tid] == IcacheAccessComplete && !reach_max) {
         DPRINTF(Fetch, "[tid:%i] Icache miss is complete.\n", tid);
 
         fetchStatus[tid] = Running;
         status_change = true;
-    } else if (fetchStatus[tid] == Running) {
+    } else if (fetchStatus[tid] == Running && !reach_max) {
         // Align the fetch PC so its at the start of a fetch buffer segment.
         Addr fetchBufferBlockPC = fetchBufferAlignPC(fetchAddr);
 
@@ -1163,7 +1163,7 @@ DefaultFetch<Impl>::fetch(bool &status_change)
         // to the next cache block, AND we have no remaining ucode
         // from a macro-op, then start fetch from icache.
         if (!(fetchBufferValid[tid] && fetchBufferBlockPC == fetchBufferPC[tid])
-            && !inRom && !macroop[tid]) {
+            && !inRom && !macroop[tid] && !reach_max) {
             DPRINTF(Fetch, "[tid:%i] Attempting to translate and read "
                     "instruction, starting at PC %s.\n", tid, thisPC);
 
@@ -1176,7 +1176,8 @@ DefaultFetch<Impl>::fetch(bool &status_change)
             else
                 ++fetchStats.miscStallCycles;
             return;
-        } else if ((checkInterrupt(thisPC.instAddr()) && !delayedCommit[tid])) {
+        } else if ((checkInterrupt(thisPC.instAddr()) &&
+        !delayedCommit[tid]) && !reach_max) {
             // Stall CPU if an interrupt is posted and we're not issuing
             // an delayed commit micro-op currently (delayed commit instructions
             // are not interruptable by interrupts, only faults)
@@ -1188,6 +1189,9 @@ DefaultFetch<Impl>::fetch(bool &status_change)
         if (fetchStatus[tid] == Idle) {
             ++fetchStats.idleCycles;
             DPRINTF(Fetch, "[tid:%i] Fetch is idle!\n", tid);
+        }
+        if (reach_max){
+            DPRINTF(Fetch, "[tid:%i] Fetch reaches max insts!\n", tid);
         }
 
         // Status is Idle, so fetch should do nothing.
