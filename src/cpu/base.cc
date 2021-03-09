@@ -667,7 +667,6 @@ BaseCPU::scheduleInstStop(ThreadID tid, Counter insts, const char *cause)
     const Tick now(getCurrentInstCount(tid));
     Event *event(new LocalSimLoopExitEvent(cause, 0));
 
-    desired_insts = now+insts+1;
     printf("Instructions stops for: %ld\n\n\n\n\n",desired_insts);
     threadContexts[tid]->scheduleInstCountEvent(event, now + insts);
 }

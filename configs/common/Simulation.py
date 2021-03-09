@@ -395,7 +395,7 @@ def restoreSimpointCheckpoint(testsys):
     runCPU(10000000,testsys.switch_cpus,-1)
     print("Warmed up, reset")
     m5.stats.reset()
-    runCPU(100000000,testsys.switch_cpus,-1)
+    runCPUexact(100000000,testsys.switch_cpus,-1)
     print("DUMP stats")
     m5.stats.dump()
     sys.exit()
@@ -982,6 +982,48 @@ def run(options, root, testsys, cpu_class):
         print("Simulated exit code not 0! Exit code is", exit_event.getCode())
 
 
+def runCPUexact(period,currentCPU,ctrl_cpu_index=0):
+    if ctrl_cpu_index == -1:
+        _size = len(currentCPU)
+        insts = []
+        for i in range(_size):
+            insts.append(currentCPU[i].totalInsts())
+            currentCPU[i].setMaxInstStop(0,period)
+            currentCPU[i].scheduleInstStop(0,period,
+                   "Max Insts readed CPU %d"%(i))
+        cnt = 0
+        #ipdb.set_trace()
+        arr=[0 for i in range(_size)]
+        repeative=0
+        while cnt < _size:
+            setflag = False
+            exit_event = m5.simulate()
+            exit_cause = exit_event.getCause()
+            print(exit_cause)
+            success = exit_cause.startswith("Max Insts")
+            if not success : continue
+            cnt = 0
+            for i in range(_size):
+                remainder = period -(currentCPU[i].totalInsts()-insts[i])
+                if remainder <= 0:
+                    cnt+=1
+                    if arr[i] == 0:
+                        arr[i]=1
+                        print("CPU %d finished first time at %d point "%\
+                        (i,repeative))
+                        currentCPU[i].setMaxInstStop(0,2*period)
+                print("DEBUG: cpu %d: insts simed this interval %d"%\
+                (i,currentCPU[i].totalInsts()-insts[i]))
+
+            m5.stats.dump()
+            repeative += 1
+
+        for  i in range(_size):
+            print("DEBUG: insts simed this interval %d"%\
+            (currentCPU[i].totalInsts()-insts[i]))
+        return success, exit_cause
+    return False, "Wrong parameters"
+
 def runCPU(period, currentCPU, ctrl_cpu_index=0):
     if ctrl_cpu_index == -1:
         _size = len(currentCPU)
@@ -990,6 +1032,7 @@ def runCPU(period, currentCPU, ctrl_cpu_index=0):
         for i in range(_size):
             insts.append(currentCPU[i].totalInsts())
             if not setflag :
+                currentCPU[i].setMaxInstStop(0,period)
                 currentCPU[i].scheduleInstStop(0,period,
                        "Max Insts readed CPU %d"%(i))
                 setflag = True
