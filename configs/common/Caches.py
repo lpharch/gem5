@@ -77,12 +77,12 @@ class L2Cache(Cache):
 
 class L3Cache(Cache):
     assoc = 16
-    tag_latency = 40
-    data_latency = 40
-    response_latency = 20
-    mshrs = 128
+    tag_latency = 20
+    data_latency = 20
+    response_latency = 40
+    mshrs = 32
     tgts_per_mshr = 20
-    write_buffers = 32
+    write_buffers = 16
     size = '16MB'
     #prefetcher = DCPTPrefetcher()
 
