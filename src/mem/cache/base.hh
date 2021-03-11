@@ -557,7 +557,9 @@ class BaseCache : public ClockedObject
      * @param blk The reference block
      */
     virtual void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                                    CacheBlk *blk) = 0;
+                                    CacheBlk *blk,
+                                    bool shadowTagEnabled=false,
+                                    CacheBlk *shadow_blk = nullptr) = 0;
 
     /**
      * Handles a response (cache line fill/write ack) from the bus.
@@ -626,6 +628,9 @@ class BaseCache : public ClockedObject
      */
     void updateBlockData(CacheBlk *blk, const PacketPtr cpkt,
         bool has_old_data);
+
+    void updateShadowBlockData(CacheBlk *blk, const PacketPtr cpkt);
+
 
     /**
      * Handle doing the Compare and Swap function for SPARC.
@@ -792,9 +797,11 @@ class BaseCache : public ClockedObject
      * @return Pointer to the new cache block.
      */
     CacheBlk *handleFill(PacketPtr pkt, CacheBlk *blk,
-                         PacketList &writebacks, bool allocate,
-                         bool shadowTagEnabled = false,
-                         CacheBlk* shadow_blk = nullptr);
+                         PacketList &writebacks, bool allocate);
+
+    CacheBlk *fillShadowTag(PacketPtr pkt, CacheBlk *shadow_blk,
+                         PacketList &writebacks, bool allocate);
+
 
     /**
      * Allocate a new block and perform any necessary writebacks
@@ -843,6 +850,7 @@ class BaseCache : public ClockedObject
      * @param blk Block to invalidate
      */
     void invalidateBlock(CacheBlk *blk);
+    void invalidateShadowBlock(CacheBlk *blk);
 
     /**
      * Create a writeback request for the given block.
@@ -1156,6 +1164,13 @@ class BaseCache : public ClockedObject
 
         Stats::Scalar shadowHit;
         Stats::Scalar shadowMiss;
+        Stats::Scalar shadowCnt0;
+        Stats::Scalar shadowCnt1;
+        Stats::Scalar shadowCnt2;
+        Stats::Scalar shadowCnt3;
+        Stats::Scalar shadowCnt4;
+        Stats::Scalar shadowCnt5;
+
 
         /** Per-command statistics */
         std::vector<std::unique_ptr<CacheCmdStats>> cmd;
@@ -1345,6 +1360,7 @@ class BaseCache : public ClockedObject
      * @warn Dirty cache lines will not be written back to memory.
      */
     void invalidateVisitor(CacheBlk &blk);
+    void invalidateShadowVisitor(CacheBlk &blk);
 
     /**
      * Take an MSHR, turn it into a suitable downstream packet, and

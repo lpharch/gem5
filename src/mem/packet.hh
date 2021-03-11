@@ -89,7 +89,7 @@ class MemCmd
         WritebackClean,        //dirty/clean indicated the evicted blk is
                                //dirty or clean
         WriteClean,            //keep the blk at its place, but send the dirty
-                               //data below
+                               //data below, also transfer the ownership
         CleanEvict,            //evict clean data, not simply dropping cuz
                                //want to keep it in cache below
 

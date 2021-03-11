@@ -55,6 +55,7 @@
 #include "debug/Cache.hh"
 #include "debug/CacheTags.hh"
 #include "debug/CacheVerbose.hh"
+#include "debug/WQ.hh"
 #include "enums/Clusivity.hh"
 #include "mem/cache/cache_blk.hh"
 #include "mem/cache/mshr.hh"
@@ -680,7 +681,8 @@ Cache::recvAtomic(PacketPtr pkt)
 
 
 void
-Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
+Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
+                          bool shadowTagEnabled, CacheBlk* shadow_blk)
 {
     QueueEntry::Target *initial_tgt = mshr->getTarget();
     // First offset for critical word first calculations
@@ -792,6 +794,10 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
                     pkt->payloadDelay;
                 tgt_pkt->req->setExtraData(0);
             } else {
+                if (shadowTagEnabled && is_invalidate &&
+                    shadow_blk && shadow_blk->isValid()){
+                        shadow_tags->invalidate(shadow_blk);
+                }
                 if (is_invalidate && blk && blk->isValid()) {
                     // We are about to send a response to a cache above
                     // that asked for an invalidation; we need to
@@ -801,6 +807,7 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
                     // responding (if the block was previously dirty) to
                     // snoops as they should snoop the caches above where
                     // they will get the response from.
+                    DPRINTF(WQ, "Invalidate cmd on receive path\n");
                     invalidateBlock(blk);
                 }
                 // not a cache fill, just forwarding response
@@ -882,6 +889,13 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
     }
 
     maintainClusivity(targets.hasFromCache, blk);
+
+    if (shadowTagEnabled &&
+        shadow_blk && shadow_blk->isValid()){
+        if (is_invalidate || mshr->hasPostInvalidate()) {
+            shadow_tags->invalidate(shadow_blk);
+        }
+    }
 
     if (blk && blk->isValid()) {
         // an invalidate response stemming from a write line request
@@ -1188,6 +1202,7 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
     // Do this last in case it deallocates block data or something
     // like that
     if (blk_valid && invalidate) {
+        DPRINTF(WQ, "evicted from the snoop path\n");
         invalidateBlock(blk);
         DPRINTF(Cache, "new state is %s\n", blk->print());
     }

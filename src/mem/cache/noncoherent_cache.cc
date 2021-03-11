@@ -237,7 +237,8 @@ NoncoherentCache::functionalAccess(PacketPtr pkt, bool from_cpu_side)
 
 void
 NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                                     CacheBlk *blk)
+                                     CacheBlk *blk, bool shadowTagEnabled,
+                                     CacheBlk *shadow_blk)
 {
     // First offset for critical word first calculations
     const int initial_offset = mshr->getTarget()->pkt->getOffset(blkSize);

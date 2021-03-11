@@ -98,7 +98,9 @@ class Cache : public BaseCache
     void doWritebacksAtomic(PacketList& writebacks) override;
 
     void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                            CacheBlk *blk) override;
+                            CacheBlk *blk,
+                            bool shadowTagEnabled = false,
+                            CacheBlk *shadow_blk = nullptr) override;
 
     void recvTimingSnoopReq(PacketPtr pkt) override;
 
