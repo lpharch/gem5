@@ -54,7 +54,6 @@ DRAMsim3::DRAMsim3(const Params &p) :
                        this, 0, std::placeholders::_1)),
     wrapper(p.configFile, p.filePath, read_cb, write_cb),
     retryReq(false), retryResp(false), startTick(0),
-    nbrOutstandingReads(0), nbrOutstandingWrites(0),
     sendResponseEvent([this]{ sendResponse(); }, name()),
     tickEvent([this]{ tick(); }, name())
 {
@@ -388,3 +387,8 @@ DRAMsim3::MemoryPort::recvRespRetry()
 {
     memory.recvRespRetry();
 }
+
+std::unordered_map<Addr, std::queue<PacketPtr> > DRAMsim3::outstandingReads;
+std::unordered_map<Addr, std::queue<PacketPtr> > DRAMsim3::outstandingWrites;
+unsigned int DRAMsim3::nbrOutstandingReads=0;
+unsigned int DRAMsim3::nbrOutstandingWrites=0;

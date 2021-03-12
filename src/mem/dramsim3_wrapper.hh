@@ -80,6 +80,8 @@ class DRAMsim3Wrapper
     template <typename T>
     T extractConfig(const std::string& field_name,
                     const std::string& file_name) const;
+    int id;
+
 
   public:
 
@@ -96,6 +98,7 @@ class DRAMsim3Wrapper
                     std::function<void(uint64_t)> write_cb);
     ~DRAMsim3Wrapper();
 
+    static int inst_num;
     /**
      * Print the stats gathered in DRAMsim3.
      */

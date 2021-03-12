@@ -63,6 +63,9 @@ DRAMsim3Wrapper::DRAMsim3Wrapper(const std::string& config_file,
                                        read_cb, write_cb)),
     _clockPeriod(0.0), _queueSize(0), _burstSize(0)
 {
+
+    id = inst_num;
+
     // there is no way of getting DRAMsim3 to tell us what frequency
     // it is assuming, so we have to extract it ourselves
     _clockPeriod = dramsim->GetTCK();
@@ -87,6 +90,8 @@ DRAMsim3Wrapper::DRAMsim3Wrapper(const std::string& config_file,
        fatal("DRAMsim3 wrapper failed to get burst size\n");
 
    _burstSize = dataBusBits * burstLength / 8;
+   inst_num++;
+
 }
 
 DRAMsim3Wrapper::~DRAMsim3Wrapper()
@@ -148,6 +153,7 @@ DRAMsim3Wrapper::burstSize() const
 void
 DRAMsim3Wrapper::tick()
 {
-    dramsim->ClockTick();
+    dramsim->ClockTick(id);
 }
 
+int DRAMsim3Wrapper::inst_num = 0;
