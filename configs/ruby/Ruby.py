@@ -54,6 +54,8 @@ from common import FileSystemConfig
 from topologies import *
 from network import Network
 
+import ipdb
+
 def define_options(parser):
     # By default, ruby uses the simple timing cpu
     parser.set_defaults(cpu_type="TimingSimpleCPU")
@@ -133,13 +135,22 @@ def setup_memory_controllers(system, ruby, dir_cntrls, options):
             dram_intf = MemConfig.create_mem_intf(mem_type, r, index,
                 options.num_dirs, int(math.log(options.num_dirs, 2)),
                 intlv_size, options.xor_low_bit)
-            mem_ctrl = m5.objects.MemCtrl(dram = dram_intf)
+            ipdb.set_trace()
+            opt_mem_type = getattr(options, "mem_type",None)
+            if opt_mem_type == "DRAMsim3":
+                mem_ctrl = m5.objects.DRAMsim3()
+                mem_ctrl.range = r
+            else:
+                mem_ctrl = m5.objects.MemCtrl(dram = dram_intf)
 
             if options.access_backing_store:
                 dram_intf.kvm_map=False
 
             mem_ctrls.append(mem_ctrl)
-            dir_ranges.append(mem_ctrl.dram.range)
+            if opt_mem_type == "DRAMsim3":
+                dir_ranges.append(mem_ctrl.range)
+            else:
+                dir_ranges.append(mem_ctrl.dram.range)
 
             if crossbar != None:
                 mem_ctrl.port = crossbar.master
