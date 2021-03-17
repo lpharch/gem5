@@ -1191,6 +1191,11 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     Cycles tag_latency(0);
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), tag_latency);
 
+    if (std::string::npos != name().find("l3cache") &&
+       blk){
+        DPRINTF(WQ, "Access hit by %d\n", pkt->req->coreId());
+    }
+
     const bool shadowTagActivated = shadow_tags &&
                                     pkt->req->coreId() == shadow_tag_owner;
     CacheBlk* shadow_blk = nullptr;
@@ -1200,11 +1205,11 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                                               pkt->isSecure(),
                                               tmp);
 
-        if (shadow_blk) stats.shadowCnt0++;
+        //if (shadow_blk) stats.shadowCnt0++;
         //else stats.shadowCnt1++;
     }
 
-    if (blk) stats.shadowCnt2++;
+    //if (blk) stats.shadowCnt2++;
     //else stats.shadowCnt3++;
 
     if (shadow_blk && !blk) stats.shadowCnt4++;
@@ -1341,12 +1346,20 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             //if (shadow_blk) stats.shadowHit++;
             // need to do a replacement
             stats.shadowCnt3++;
-            blk = allocateBlock(pkt, writebacks);
+            int prevOwner = -1;
+            blk = allocateBlock(pkt, writebacks, &prevOwner);
             if (!blk) {
                 // no replaceable block available: give up, fwd to next level.
-                DPRINTF(WQ, "Regular tag allcocate fail on writeback\n");
                 incMissCount(pkt);
                 return false;
+            }
+
+
+            if (std::string::npos != name().find("l3cache") && prevOwner!=-1){
+                //DPRINTF(WQ, "Replacement is set: %d oldpid %d, new pid %d\n",
+                //         blk->set, prevOwner, pkt->req->coreId());
+                DPRINTF(WQ, "Replacement oldpid %d, new pid %d\n",
+                         prevOwner, pkt->req->coreId());
             }
 
             blk->setCoherenceBits(CacheBlk::ReadableBit);
@@ -1803,7 +1816,8 @@ BaseCache::allocateShadowBlock(const PacketPtr pkt)
     return shadow_victim;
 }
 CacheBlk*
-BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
+BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks,
+                         int *origOwner)
 {
     // Get address
     const Addr addr = pkt->getAddr();
@@ -1837,6 +1851,8 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // It is valid to return nullptr if there is no victim
     if (!victim)
         return nullptr;
+
+    if (origOwner && victim->isValid()) *origOwner = victim->getCoreId();
 
     // Print victim block's information
     DPRINTF(CacheRepl, "Replacement victim: %s\n", victim->print());
