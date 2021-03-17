@@ -147,7 +147,7 @@ class MySystem(System):
 
     def createCacheHierarchy(self):
         # Create an L3 cache (with crossbar)
-        self.l3bus = L2XBar(width = 64,
+        self.l3bus = SystemXBar(width = 64,
                             snoop_filter = SnoopFilter(max_capacity='32MB'))
 
         for cpu in self.cpu:
