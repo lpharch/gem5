@@ -102,11 +102,16 @@ def parse_arguments():
     parser.add_argument("--detailed_warmup", default = False,
             action = "store_true",
             help = "Use O3CPU for warming up, instead of atomic CPU")
-
-
-    #parser.add_argument("-d", "--ckpt-dir", type = str,
-    #                    default = "checkpoints",
-    #                    help = "Path for storing checkpoints")
+    parser.add_argument("--take_ckpt", default = False,
+            action = "store_true",
+            help = "Take Checkpoints")
+    parser.add_argument("-d", "--ckpt_dir", type = str,
+                        help = "Path for storing checkpoints")
+    parser.add_argument("--restore_ckpt", default = False,
+            action = "store_true",
+            help = "restore from checkpoints")
+    parser.add_argument("-r", "--restore_dir", type = str,
+                        help = "Path to find checkpoints")
     #parser.add_argument("-l", "--no-copy-logs", default = False,
     #                    action = "store_true",
     #                    help = "Not copy SPEC run logs to the host system;"
@@ -201,9 +206,23 @@ if __name__ == "__m5_main__":
     warmUp_period = args.warmup_period
     sim_period = args.sim_period
     num_sample = args.numSamples
-    #cptdir = args.ckpt_dir
+    cptdir = args.ckpt_dir
     tick_mode = not args.time_in_inst
     detailed_warmup = args.detailed_warmup
+    take_ckpt = args.take_ckpt
+    restore_mode = args.restore_ckpt
+    restore_dir = args.restore_dir
+
+    if restore_mode and not restore_dir:
+        print("Restore mode but not restore dir, exit")
+        exit(-1)
+
+    num_ckpt = 0
+    if not cptdir:
+        if m5.options.outdir:
+            cptdir = m5.options.outdir
+        else:
+            cptdir = getcwd()
 
     output_dir = os.path.join(m5.options.outdir, "ckptCollection")
 
@@ -231,7 +250,11 @@ if __name__ == "__m5_main__":
     #    m5.disableAllListeners()
 
     # instantiate all of the objects we've created above
-    m5.instantiate()
+    if restore_mode:
+        m5.instantiate(restore_dir)
+        system.switchCpus()
+    else:
+        m5.instantiate()
 
     # booting linux. Precond: kvmcpu
     exit_event = m5.simulate()
@@ -262,6 +285,12 @@ if __name__ == "__m5_main__":
 
     # Main Sampling Loop, precond: kvmcpu
     for i in range(num_sample):
+        if take_ckpt:
+            cpt_name = os.path.join(cptdir, "ckpt."+str(num_ckpt))
+            print("dump ckpt: " + cpt_name)
+            m5.checkpoint(cpt_name)
+            num_ckpt += 1
+
         print('\033[32m' + "Start sample " + str(i) +", warming up" + '\033[m')
         if detailed_warmup:
             system.switchCpus(system.cpu, system.detailed_cpu)
