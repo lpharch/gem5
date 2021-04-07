@@ -244,6 +244,7 @@ def build(options):
                           mem_size=options.mem_size,
                           bootloader=options.bootloader)
 
+    system.realview.gic.gem5_extensions = True
     root.system = system
     if options.kernel_cmd:
         system.workload.command_line = options.kernel_cmd
@@ -326,6 +327,9 @@ def _build_kvm(system, cpus):
             for obj in cpu.descendants():
                 obj.eventq_index = device_eq
             cpu.eventq_index = first_cpu_eq + idx
+
+    GenericTimer.generateDeviceTree = SimObject.generateDeviceTree
+    system.realview.gic.simulate_gic = True
 
 
 
