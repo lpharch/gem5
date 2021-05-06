@@ -143,13 +143,14 @@ def getDetailedCPUModel(cpu_name):
 
 
 def create_system(linux_kernel_path, disk_image_path,
-        detailed_cpu_model, cpu_num):
+        detailed_cpu_model, cpu_num, args):
     # create the system we are going to simulate
     system = MySystem(kernel = linux_kernel_path,
                       disk = disk_image_path,
                       num_cpus = cpu_num,
                       no_kvm = False,
-                      TimingCPUModel = detailed_cpu_model)
+                      TimingCPUModel = detailed_cpu_model,)
+                      config_args = args
 
     # For workitems to work correctly
     # This will cause the simulator to exit simulation when the first work
@@ -245,6 +246,8 @@ if __name__ == "__m5_main__":
     root, system = create_system(linux_kernel_path, disk_image_path,
                                  detailed_cpu, cpu_num)
 
+    #for rsC
+    system.readfile = "test.rcS"
     # needed for long running jobs
     #if not allow_listeners:
     #    m5.disableAllListeners()

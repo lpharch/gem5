@@ -50,18 +50,22 @@ def parse_arguments():
                   help = "Instruction postions to take ckpt, in 100M Inst")
     parser.add_argument("-d", "--ckpt_dir", type = str,
                         help = "Path for storing checkpoints")
-
+    parser.add_argument("--l3size", type = str, help = "L3 size in MB",
+                        default = "1MB")
+    parser.add_argument("--l3assoc", type = int, help = "L3 associativity",
+                        default = 8)
     return parser.parse_args()
 
 
 def create_system(linux_kernel_path, disk_image_path,
-        detailed_cpu_model, cpu_num):
+        detailed_cpu_model, cpu_num, args):
     # create the system we are going to simulate
     system = MySystem(kernel = linux_kernel_path,
                       disk = disk_image_path,
                       num_cpus = cpu_num,
                       no_kvm = False,
-                      TimingCPUModel = detailed_cpu_model)
+                      TimingCPUModel = detailed_cpu_model,
+                      config_args = args)
 
     # For workitems to work correctly
     # This will cause the simulator to exit simulation when the first work
@@ -129,7 +133,7 @@ if __name__ == "__m5_main__":
 
     detailed_cpu = DerivO3CPU
     root, system = create_system(linux_kernel_path, disk_image_path,
-                                 detailed_cpu, cpu_num)
+                                 detailed_cpu, cpu_num, args)
     system.readfile = launch_script
 
     # Necessary for startup script to run successfully, otherwise the

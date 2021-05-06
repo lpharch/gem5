@@ -154,19 +154,27 @@ class L3Cache(Cache):
     """
 
     # Default parameters
-    assoc = 16
     tag_latency = 40
     data_latency = 40
     response_latency = 10
     mshrs = 256
     tgts_per_mshr = 12
     clusivity = 'mostly_excl'
-    shadow_tags = BaseSetAssoc()
 
-    size = '4MB'
+    #size = '1MB'
+    #assoc = 16
 
-    def __init__(self):
+    def __init__(self, config_args):
         super(L3Cache, self).__init__()
+        if config_args.l3size:
+            self.size = config_args.l3size
+        else:
+            self.size = '1MB'
+
+        if config_args.l3assoc:
+            self.assoc = config_args.l3assoc
+        else:
+            self.assoc = 16
 
     def connectCPUSideBus(self, bus):
         self.cpu_side = bus.master

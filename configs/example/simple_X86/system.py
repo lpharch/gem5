@@ -37,7 +37,8 @@ from caches import *
 class MySystem(System):
 
 
-    def __init__(self, kernel, disk, num_cpus, TimingCPUModel, no_kvm=False):
+    def __init__(self, kernel, disk, num_cpus,
+                 TimingCPUModel, config_args, no_kvm=False):
         super(MySystem, self).__init__()
         self._no_kvm = no_kvm
 
@@ -76,7 +77,7 @@ class MySystem(System):
         self.workload.object_file = kernel
         # Options specified on the kernel command line
         boot_options = ['earlyprintk=ttyS0', 'console=ttyS0', 'lpj=7999923',
-                         'root=/dev/hda1']
+                         'root=/dev/hda2']
 
         self.workload.command_line = ' '.join(boot_options)
 
@@ -84,7 +85,7 @@ class MySystem(System):
         self.createCPU(num_cpus, TimingCPUModel)
 
         # Create the cache heirarchy for the system.
-        self.createCacheHierarchy()
+        self.createCacheHierarchy(config_args)
 
         # Set up the interrupt controllers for the system (x86 specific)
         self.setupInterrupts()
@@ -145,7 +146,7 @@ class MySystem(System):
         disk2 = CowDisk(img_path_2)
         self.pc.south_bridge.ide.disks = [disk0, disk2]
 
-    def createCacheHierarchy(self):
+    def createCacheHierarchy(self, config_args):
         # Create an L3 cache (with crossbar)
         self.l3bus = SystemXBar(width = 64,
                             snoop_filter = SnoopFilter(max_capacity='32MB'))
@@ -176,7 +177,7 @@ class MySystem(System):
             # Connect the L2 cache to the L3 bus
             cpu.l2cache.connectMemSideBus(self.l3bus)
 
-        self.l3cache = L3Cache()
+        self.l3cache = L3Cache(config_args)
         self.l3cache.connectCPUSideBus(self.l3bus)
 
         # Connect the L3 cache to the membus

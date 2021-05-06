@@ -121,6 +121,7 @@ def config_cache(options, system):
         # Provide a clock for the L2 and the L1-to-L2 bus here as they
         # are not connected using addTwoLevelCacheHierarchy. Use the
         # same clock as the CPUs.
+        # **means unpack the argument
         system.l2 = l2_cache_class(clk_domain=system.cpu_clk_domain,
                                    **_get_cache_opts('l2', options))
 
