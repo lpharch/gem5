@@ -41,15 +41,9 @@ namespace PowerISA {
 class Interrupts : public BaseInterrupts
 {
   public:
-    typedef PowerInterruptsParams Params;
+    using Params = PowerInterruptsParams;
 
-    const Params *
-    params() const
-    {
-        return dynamic_cast<const Params *>(_params);
-    }
-
-    Interrupts(Params *p) : BaseInterrupts(p) {}
+    Interrupts(const Params &p) : BaseInterrupts(p) {}
 
     void
     post(int int_num, int index)
