@@ -85,7 +85,7 @@ class L2(L2Cache):
     size = '1MB'
     assoc = 16
     write_buffers = 8
-    clusivity='mostly_excl'
+    #clusivity='mostly_excl'
 
 
 class L3(Cache):
@@ -142,7 +142,9 @@ class CpuCluster(SubSystem):
             l1d = None if self._l1d_type is None else self._l1d_type()
             iwc = None if self._wcache_type is None else self._wcache_type()
             dwc = None if self._wcache_type is None else self._wcache_type()
-            cpu.addPrivateSplitL1Caches(l1i, l1d, iwc, dwc)
+            l2 = None if self._l2_type is None else self._l2_type()
+            cpu.addTwoLevelCacheHierarchy(l1i, l1d, l2, iwc, dwc)
+            #cpu.addPrivateSplitL1Caches(l1i, l1d, iwc, dwc)
 
     def addL2(self, clk_domain):
         if self._l2_type is None:
@@ -367,20 +369,20 @@ def simpleSystem(BaseSystem, caches, mem_size, platform=None, **kwargs):
                 return
 
             cluster_mem_bus = self.membus
-            assert last_cache_level >= 1 and last_cache_level <= 3
+            #assert last_cache_level >= 1 and last_cache_level <= 3
             for cluster in self._clusters:
                 cluster.addL1()
-            if last_cache_level > 1:
-                for cluster in self._clusters:
-                    cluster.addL2(cluster.clk_domain)
-            if last_cache_level > 2:
-                max_clock_cluster = max(self._clusters,
-                                        key=lambda c: c.clk_domain.clock[0])
-                self.l3 = L3(clk_domain=max_clock_cluster.clk_domain)
-                self.toL3Bus = L2XBar(width=64)
-                self.toL3Bus.mem_side_ports = self.l3.cpu_side
-                self.l3.mem_side = self.membus.cpu_side_ports
-                cluster_mem_bus = self.toL3Bus
+            #if last_cache_level > 1:
+            #    for cluster in self._clusters:
+            #        cluster.addL2(cluster.clk_domain)
+            #if last_cache_level > 2:
+            max_clock_cluster = max(self._clusters,
+                                    key=lambda c: c.clk_domain.clock[0])
+            self.l3 = L3(clk_domain=max_clock_cluster.clk_domain)
+            self.toL3Bus = L2XBar(width=64)
+            self.toL3Bus.mem_side_ports = self.l3.cpu_side
+            self.l3.mem_side = self.membus.cpu_side_ports
+            cluster_mem_bus = self.toL3Bus
 
             # connect each cluster to the memory hierarchy
             for cluster in self._clusters:
