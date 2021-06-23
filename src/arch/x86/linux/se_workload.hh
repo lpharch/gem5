@@ -54,12 +54,6 @@ class EmuLinux : public SEWorkload
   public:
     using Params = X86EmuLinuxParams;
 
-  protected:
-    const Params &_params;
-
-  public:
-    const Params &params() const { return _params; }
-
     EmuLinux(const Params &p);
 
     ::Loader::Arch getArch() const override { return ::Loader::X86_64; }
@@ -93,7 +87,7 @@ namespace GuestABI
 
 template <typename Arg>
 struct Argument<X86ISA::EmuLinux::SyscallABI32, Arg,
-    typename std::enable_if_t<
+    typename std::enable_if_t<std::is_integral<Arg>::value &&
         X86ISA::EmuLinux::SyscallABI32::IsWide<Arg>::value>>
 {
     using ABI = X86ISA::EmuLinux::SyscallABI32;

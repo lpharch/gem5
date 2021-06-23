@@ -48,7 +48,7 @@ GlobalMemPipeline::GlobalMemPipeline(const ComputeUnitParams &p,
     : computeUnit(cu), _name(cu.name() + ".GlobalMemPipeline"),
       gmQueueSize(p.global_mem_queue_size),
       maxWaveRequests(p.max_wave_requests), inflightStores(0),
-      inflightLoads(0)
+      inflightLoads(0), stats(&cu)
 {
 }
 
@@ -130,7 +130,7 @@ GlobalMemPipeline::exec()
         DPRINTF(GPUMem, "CU%d: WF[%d][%d]: Completing global mem instr %s\n",
                 m->cu_id, m->simdId, m->wfSlotId, m->disassemble());
         m->completeAcc(m);
-        if (m->isFlat() && m->isLoad()) {
+        if (m->isFlat()) {
             w->decLGKMInstsIssued();
         }
         w->decVMemInstsIssued();
@@ -195,10 +195,6 @@ GlobalMemPipeline::exec()
         DPRINTF(GPUCoalescer, "initiateAcc for %s seqNum %d\n",
                 mp->disassemble(), mp->seqNum());
         mp->initiateAcc(mp);
-
-        if (mp->isFlat() && mp->isStore()) {
-            mp->wavefront()->decLGKMInstsIssued();
-        }
 
         if (mp->isStore() && mp->isGlobalSeg()) {
             mp->wavefront()->decExpInstsIssued();
@@ -293,12 +289,10 @@ GlobalMemPipeline::handleResponse(GPUDynInstPtr gpuDynInst)
     mem_req->second.second = true;
 }
 
-void
-GlobalMemPipeline::regStats()
+GlobalMemPipeline::
+GlobalMemPipelineStats::GlobalMemPipelineStats(Stats::Group *parent)
+    : Stats::Group(parent, "GlobalMemPipeline"),
+      ADD_STAT(loadVrfBankConflictCycles, "total number of cycles GM data "
+               "are delayed before updating the VRF")
 {
-    loadVrfBankConflictCycles
-        .name(name() + ".load_vrf_bank_conflict_cycles")
-        .desc("total number of cycles GM data are delayed before updating "
-              "the VRF")
-        ;
 }

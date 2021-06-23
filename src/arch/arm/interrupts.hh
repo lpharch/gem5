@@ -73,14 +73,7 @@ class Interrupts : public BaseInterrupts
     uint64_t intStatus;
 
   public:
-
-    typedef ArmInterruptsParams Params;
-
-    const Params &
-    params() const
-    {
-        return dynamic_cast<const Params &>(_params);
-    }
+    using Params = ArmInterruptsParams;
 
     Interrupts(const Params &p) : BaseInterrupts(p)
     {

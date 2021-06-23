@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 Advanced Micro Devices, Inc.
+ * Copyright (c) 2017-2021 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * For use for simulation and test purposes only
@@ -36,9 +36,9 @@
 #include "debug/ProtocolTest.hh"
 
 GpuWavefront::GpuWavefront(const Params &p)
-      : GpuThread(p), cuId(p.cu_id)
+      : TesterThread(p), cuId(p.cu_id)
 {
-    threadName = "GpuWavefront(GpuThread ID = " + std::to_string(threadId) +
+    threadName = "GpuWavefront(TesterThread ID = " + std::to_string(threadId) +
                  ", CU ID = " + std::to_string(cuId) + ")";
     threadEvent.setDesc("GpuWavefront tick");
 }
@@ -46,12 +46,6 @@ GpuWavefront::GpuWavefront(const Params &p)
 GpuWavefront::~GpuWavefront()
 {
 
-}
-
-GpuWavefront*
-GpuWavefrontParams::create() const
-{
-    return new GpuWavefront(*this);
 }
 
 void

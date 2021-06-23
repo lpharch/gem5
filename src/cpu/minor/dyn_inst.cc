@@ -79,7 +79,7 @@ void
 MinorDynInst::init()
 {
     if (!bubbleInst) {
-        bubbleInst = new MinorDynInst();
+        bubbleInst = new MinorDynInst(StaticInst::nullStaticInstPtr);
         assert(bubbleInst->isBubble());
         /* Make bubbleInst immortal */
         bubbleInst->incref();
@@ -214,7 +214,7 @@ MinorDynInst::minorTraceInst(const Named &named_object) const
                     regs_str << ',';
             }
 
-            ccprintf(regs_str, " extMachInst=%160x", staticInst->machInst);
+            ccprintf(regs_str, " extMachInst=%160x", staticInst->getEMI());
         }
 
         std::ostringstream flags;

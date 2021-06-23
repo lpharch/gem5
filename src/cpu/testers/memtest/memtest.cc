@@ -48,8 +48,6 @@
 #include "sim/stats.hh"
 #include "sim/system.hh"
 
-using namespace std;
-
 unsigned int TESTER_ALLOCATOR = 0;
 
 bool
@@ -163,8 +161,9 @@ MemTest::completeRequest(PacketPtr pkt, bool functional)
             stats.numReads++;
 
             if (numReads == (uint64_t)nextProgressMessage) {
-                ccprintf(cerr, "%s: completed %d read, %d write accesses @%d\n",
-                         name(), numReads, numWrites, curTick());
+                ccprintf(std::cerr,
+                        "%s: completed %d read, %d write accesses @%d\n",
+                        name(), numReads, numWrites, curTick());
                 nextProgressMessage += progressInterval;
             }
 
@@ -192,8 +191,8 @@ MemTest::completeRequest(PacketPtr pkt, bool functional)
 }
 MemTest::MemTestStats::MemTestStats(Stats::Group *parent)
       : Stats::Group(parent),
-      ADD_STAT(numReads, "number of read accesses completed"),
-      ADD_STAT(numWrites, "number of write accesses completed")
+      ADD_STAT(numReads, UNIT_COUNT, "number of read accesses completed"),
+      ADD_STAT(numWrites, UNIT_COUNT, "number of write accesses completed")
 {
 
 }

@@ -71,8 +71,6 @@
 #include "sim/system.hh"
 #include "cpu/o3/isa_specific.hh"
 
-using namespace std;
-
 template<class Impl>
 DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, const DerivO3CPUParams &params)
     : fetchPolicy(params.smtFetchPolicy),
@@ -161,45 +159,49 @@ template <class Impl>
 DefaultFetch<Impl>::
 FetchStatGroup::FetchStatGroup(O3CPU *cpu, DefaultFetch *fetch)
     : Stats::Group(cpu, "fetch"),
-    ADD_STAT(icacheStallCycles,
+    ADD_STAT(icacheStallCycles, UNIT_CYCLE,
              "Number of cycles fetch is stalled on an Icache miss"),
-    ADD_STAT(insts, "Number of instructions fetch has processed"),
-    ADD_STAT(branches, "Number of branches that fetch encountered"),
-    ADD_STAT(predictedBranches,
+    ADD_STAT(insts, UNIT_COUNT, "Number of instructions fetch has processed"),
+    ADD_STAT(branches, UNIT_COUNT,
+             "Number of branches that fetch encountered"),
+    ADD_STAT(predictedBranches, UNIT_COUNT,
              "Number of branches that fetch has predicted taken"),
-    ADD_STAT(cycles,
+    ADD_STAT(cycles, UNIT_CYCLE,
              "Number of cycles fetch has run and was not squashing or "
              "blocked"),
-    ADD_STAT(squashCycles, "Number of cycles fetch has spent squashing"),
-    ADD_STAT(tlbCycles,
+    ADD_STAT(squashCycles, UNIT_CYCLE,
+             "Number of cycles fetch has spent squashing"),
+    ADD_STAT(tlbCycles, UNIT_CYCLE,
              "Number of cycles fetch has spent waiting for tlb"),
-    ADD_STAT(idleCycles, "Number of cycles fetch was idle"),
-    ADD_STAT(blockedCycles, "Number of cycles fetch has spent blocked"),
-    ADD_STAT(miscStallCycles,
-             "Number of cycles fetch has spent waiting on interrupts, "
-             "or bad addresses, or out of MSHRs"),
-    ADD_STAT(pendingDrainCycles,
+    ADD_STAT(idleCycles, UNIT_CYCLE, "Number of cycles fetch was idle"),
+    ADD_STAT(blockedCycles, UNIT_CYCLE,
+             "Number of cycles fetch has spent blocked"),
+    ADD_STAT(miscStallCycles, UNIT_CYCLE,
+             "Number of cycles fetch has spent waiting on interrupts, or bad "
+             "addresses, or out of MSHRs"),
+    ADD_STAT(pendingDrainCycles, UNIT_CYCLE,
              "Number of cycles fetch has spent waiting on pipes to drain"),
-    ADD_STAT(noActiveThreadStallCycles,
+    ADD_STAT(noActiveThreadStallCycles, UNIT_CYCLE,
              "Number of stall cycles due to no active thread to fetch from"),
-    ADD_STAT(pendingTrapStallCycles,
+    ADD_STAT(pendingTrapStallCycles, UNIT_CYCLE,
              "Number of stall cycles due to pending traps"),
-    ADD_STAT(pendingQuiesceStallCycles,
+    ADD_STAT(pendingQuiesceStallCycles, UNIT_CYCLE,
              "Number of stall cycles due to pending quiesce instructions"),
-    ADD_STAT(icacheWaitRetryStallCycles,
+    ADD_STAT(icacheWaitRetryStallCycles, UNIT_CYCLE,
              "Number of stall cycles due to full MSHR"),
-    ADD_STAT(cacheLines, "Number of cache lines fetched"),
-    ADD_STAT(icacheSquashes,
+    ADD_STAT(cacheLines, UNIT_COUNT, "Number of cache lines fetched"),
+    ADD_STAT(icacheSquashes, UNIT_COUNT,
              "Number of outstanding Icache misses that were squashed"),
-    ADD_STAT(tlbSquashes,
+    ADD_STAT(tlbSquashes, UNIT_COUNT,
              "Number of outstanding ITLB misses that were squashed"),
-    ADD_STAT(nisnDist,
+    ADD_STAT(nisnDist, UNIT_COUNT,
              "Number of instructions fetched each cycle (Total)"),
-    ADD_STAT(idleRate, "Percent of cycles fetch was idle",
-             idleCycles * 100 / cpu->baseStats.numCycles),
-    ADD_STAT(branchRate, "Number of branch fetches per cycle",
+    ADD_STAT(idleRate, UNIT_RATIO, "Ratio of cycles fetch was idle",
+             idleCycles / cpu->baseStats.numCycles),
+    ADD_STAT(branchRate, UNIT_RATIO, "Number of branch fetches per cycle",
              branches / cpu->baseStats.numCycles),
-    ADD_STAT(rate, "Number of inst fetches per cycle",
+    ADD_STAT(rate, UNIT_RATE(Stats::Units::Count, Stats::Units::Cycle),
+             "Number of inst fetches per cycle",
              insts / cpu->baseStats.numCycles)
 {
         icacheStallCycles
@@ -807,8 +809,8 @@ typename DefaultFetch<Impl>::FetchStatus
 DefaultFetch<Impl>::updateFetchStatus()
 {
     //Check Running
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
 
     while (threads != end) {
         ThreadID tid = *threads++;
@@ -860,8 +862,8 @@ template <class Impl>
 void
 DefaultFetch<Impl>::tick()
 {
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
     bool status_change = false;
 
     wroteToTimeBuffer = false;
@@ -1426,7 +1428,7 @@ DefaultFetch<Impl>::getFetchingThread()
             return InvalidThreadID;
         }
     } else {
-        list<ThreadID>::iterator thread = activeThreads->begin();
+        std::list<ThreadID>::iterator thread = activeThreads->begin();
         if (thread == activeThreads->end()) {
             return InvalidThreadID;
         }
@@ -1448,8 +1450,8 @@ template<class Impl>
 ThreadID
 DefaultFetch<Impl>::roundRobin()
 {
-    list<ThreadID>::iterator pri_iter = priorityList.begin();
-    list<ThreadID>::iterator end      = priorityList.end();
+    std::list<ThreadID>::iterator pri_iter = priorityList.begin();
+    std::list<ThreadID>::iterator end      = priorityList.end();
 
     ThreadID high_pri;
 
@@ -1479,12 +1481,12 @@ ThreadID
 DefaultFetch<Impl>::iqCount()
 {
     //sorted from lowest->highest
-    std::priority_queue<unsigned,vector<unsigned>,
+    std::priority_queue<unsigned, std::vector<unsigned>,
                         std::greater<unsigned> > PQ;
     std::map<unsigned, ThreadID> threadMap;
 
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
 
     while (threads != end) {
         ThreadID tid = *threads++;
@@ -1516,12 +1518,12 @@ ThreadID
 DefaultFetch<Impl>::lsqCount()
 {
     //sorted from lowest->highest
-    std::priority_queue<unsigned,vector<unsigned>,
+    std::priority_queue<unsigned, std::vector<unsigned>,
                         std::greater<unsigned> > PQ;
     std::map<unsigned, ThreadID> threadMap;
 
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
 
     while (threads != end) {
         ThreadID tid = *threads++;

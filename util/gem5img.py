@@ -2,6 +2,18 @@
 #
 # Copyright 2020 Google, Inc.
 #
+# Copyright (c) 2020 ARM Limited
+# All rights reserved
+#
+# The license below extends only to copyright in the software and shall
+# not be construed as granting a license to any other intellectual
+# property including but not limited to intellectual property relating
+# to a hardware implementation of the functionality of the software
+# licensed hereunder.  You may use the software subject to the license
+# terms below provided that you ensure that this notice is replicated
+# unmodified and in its entirety in all distributions of the software,
+# modified or unmodified, in source code or in binary form.
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met: redistributions of source code must retain the above copyright
@@ -36,7 +48,7 @@ from os import environ as env
 import string
 from subprocess import CalledProcessError, Popen, PIPE, STDOUT
 from sys import exit, argv
-
+import re
 
 # Some constants.
 MaxLBACylinders = 16383
@@ -86,7 +98,7 @@ def needSudo():
 def runCommand(command, inputVal=''):
     print("%>", ' '.join(command))
     proc = Popen(command, stdin=PIPE)
-    proc.communicate(inputVal)
+    proc.communicate(inputVal.encode())
     return proc.returncode
 
 # Run an external command and capture its output. This is intended to be
@@ -98,7 +110,7 @@ def getOutput(command, inputVal=''):
     proc = Popen(command, stderr=STDOUT,
                  stdin=PIPE, stdout=PIPE)
     (out, err) = proc.communicate(inputVal)
-    return (out, proc.returncode)
+    return (out.decode(), proc.returncode)
 
 # Run a command as root, using sudo if necessary.
 def runPriv(command, inputVal=''):
@@ -120,7 +132,7 @@ def findProg(program, cleanupDev=None):
         if cleanupDev:
             cleanupDev.destroy()
         exit("Unable to find program %s, check your PATH variable." % program)
-    return string.strip(out)
+    return out.strip()
 
 class LoopbackDevice(object):
     def __init__(self, devFile=None):
@@ -134,7 +146,7 @@ class LoopbackDevice(object):
         if returncode != 0:
             print(out)
             return returncode
-        self.devFile = string.strip(out)
+        self.devFile = out.strip()
         command = [findProg('losetup'), self.devFile, fileName]
         if offset:
             off = findPartOffset(self.devFile, fileName, 0)
@@ -159,22 +171,31 @@ def findPartOffset(devFile, fileName, partition):
     if returncode != 0:
         print(out)
         exit(returncode)
+
+    # Parse each line of the sfdisk output looking for the first
+    # partition description.
+    SFDISK_PARTITION_INFO_RE = re.compile(
+        r"^\s*"                        # Start of line
+        r"(?P<name>\S+)"               # Name
+        r"\s*:\s*"                     # Separator
+        r"start=\s*(?P<start>\d+),\s*" # Partition start record
+        r"size=\s*(?P<size>\d+),\s*"   # Partition size record
+        r"type=(?P<type>\d+)"          # Partition type record
+        r"\s*$"                        # End of line
+    )
     lines = out.splitlines()
-    # Make sure the first few lines of the output look like what we expect.
-    assert(lines[0][0] == '#' or lines[0].startswith('label:'))
-    assert(lines[1] == 'unit: sectors' or lines[1].startswith('label-id:'))
-    assert(lines[2] == '' or lines[2].startswith('device:'))
-    if lines[0][0] == '#' :
-        # Parsing an 'old style' dump oputput
-        # Line 4 has information about the first partition.
-        chunks = lines[3].split()
-    else :
-        # Parsing a 'new style' dump oputput
-        # Line 6 has information about the first partition.
-        chunks = lines[5].split()
-    # The fourth chunk is the offset of the partition in sectors followed by
-    # a comma. We drop the comma and convert that to an integer.
-    sectors = string.atoi(chunks[3][:-1])
+    for line in lines :
+        match = SFDISK_PARTITION_INFO_RE.match(line)
+        if match:
+            sectors = int(match.group("start"))
+            break
+    else:
+        # No partition description was found
+        print("No partition description was found in sfdisk output:")
+        print("\n".join("  {}".format(line.rstrip()) for line in lines))
+        print("Could not determine size of first partition.")
+        exit(1)
+
     # Free the loopback device and return an answer.
     dev.destroy()
     return sectors * BlockSize
@@ -187,8 +208,11 @@ def mountPointToDev(mountPoint):
     mountTable = mountTable.splitlines()
     for line in mountTable:
         chunks = line.split()
-        if os.path.samefile(chunks[2], mountPoint):
-            return LoopbackDevice(chunks[0])
+        try:
+            if os.path.samefile(chunks[2], mountPoint):
+                return LoopbackDevice(chunks[0])
+        except OSError:
+            continue
     return None
 
 
@@ -262,8 +286,8 @@ def mountComFunc(options, args):
 mountCom.func = mountComFunc
 
 # A command to unmount the first partition in the image.
-umountCom = Command('umount', 'Unmount the first partition in the disk image.',
-                    [('mount point', 'What mount point to unmount.')])
+umountCom = Command('umount', 'Unmount the disk image mounted at mount_point.',
+                    [('mount_point', 'What mount point to unmount.')])
 
 def umountComFunc(options, args):
     (mountPoint,) = args
@@ -299,11 +323,11 @@ def newImage(file, mb):
     # store to disk and which is defined to read as zero.
     fd = os.open(file, os.O_WRONLY | os.O_CREAT)
     os.lseek(fd, size - 1, os.SEEK_SET)
-    os.write(fd, '\0')
+    os.write(fd, b'\0')
 
 def newComFunc(options, args):
     (file, mb) = args
-    mb = string.atoi(mb)
+    mb = int(mb)
     newImage(file, mb)
 
 
@@ -366,7 +390,7 @@ formatCom.func = formatComFunc
 
 def initComFunc(options, args):
     (path, mb) = args
-    mb = string.atoi(mb)
+    mb = int(mb)
     newImage(path, mb)
     dev = LoopbackDevice()
     if dev.setup(path) != 0:

@@ -53,9 +53,8 @@
 class FaultModel : public SimObject
 {
   public:
-    typedef FaultModelParams Params;
+    using Params = FaultModelParams;
     FaultModel(const Params &p);
-    const Params &params() const { return (const Params &)_params; }
 
     /************************************************************************/
     /**********  THE FAULT TYPES SUPPORTED BY THE FAULT MODEL ***************/

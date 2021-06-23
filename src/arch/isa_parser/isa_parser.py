@@ -526,8 +526,6 @@ class ISAParser(Grammar):
         symbols = ('makeList', 're')
         self.exportContext = dict([(s, eval(s)) for s in symbols])
 
-        self.maxInstSrcRegs = 0
-        self.maxInstDestRegs = 0
         self.maxMiscDestRegs = 0
 
     def operandsRE(self):
@@ -676,13 +674,6 @@ class ISAParser(Grammar):
                     print('#define __SPLIT %u' % i, file=f)
                 print('#include "%s"' % fn, file=f)
                 print('}', file=f)
-
-        # max_inst_regs.hh
-        self.update('max_inst_regs.hh',
-                    '''namespace %(namespace)s {
-    const int MaxInstSrcRegs = %(maxInstSrcRegs)d;
-    const int MaxInstDestRegs = %(maxInstDestRegs)d;
-    const int MaxMiscDestRegs = %(maxMiscDestRegs)d;\n}\n''' % self)
 
     scaremonger_template ='''// DO NOT EDIT
 // This file was automatically generated from an ISA description:
@@ -1436,11 +1427,12 @@ StaticInstPtr
     # END OF GRAMMAR RULES
 
     def updateExportContext(self):
-
-        # create a continuation that allows us to grab the current parser
-        def wrapInstObjParams(*args):
-            return InstObjParams(self, *args)
-        self.exportContext['InstObjParams'] = wrapInstObjParams
+        # Create a wrapper class that allows us to grab the current parser.
+        class InstObjParamsWrapper(InstObjParams):
+            def __init__(iop, *args, **kwargs):
+                super(InstObjParamsWrapper, iop).__init__(
+                        self, *args, **kwargs)
+        self.exportContext['InstObjParams'] = InstObjParamsWrapper
         self.exportContext.update(self.templateMap)
 
     def defFormat(self, id, params, code, lineno):

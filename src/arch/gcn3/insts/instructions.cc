@@ -29,8 +29,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * Authors: Anthony Gutierrez
  */
 
 #include "arch/gcn3/insts/instructions.hh"
@@ -3800,7 +3798,7 @@ namespace Gcn3ISA
             wf->computeUnit->cu_id, wf->wgId, refCount);
 
         wf->computeUnit->registerManager->freeRegisters(wf);
-        wf->computeUnit->completedWfs++;
+        wf->computeUnit->stats.completedWfs++;
         wf->computeUnit->activeWaves--;
 
         panic_if(wf->computeUnit->activeWaves < 0, "CU[%d] Active waves less "
@@ -3811,7 +3809,7 @@ namespace Gcn3ISA
 
         for (int i = 0; i < wf->vecReads.size(); i++) {
             if (wf->rawDist.find(i) != wf->rawDist.end()) {
-                wf->readsPerWrite.sample(wf->vecReads.at(i));
+                wf->stats.readsPerWrite.sample(wf->vecReads.at(i));
             }
         }
         wf->vecReads.clear();
@@ -3853,7 +3851,7 @@ namespace Gcn3ISA
             if (!kernelEnd || !relNeeded) {
                 wf->computeUnit->shader->dispatcher().notifyWgCompl(wf);
                 wf->setStatus(Wavefront::S_STOPPED);
-                wf->computeUnit->completedWGs++;
+                wf->computeUnit->stats.completedWGs++;
 
                 return;
             }
@@ -3877,7 +3875,7 @@ namespace Gcn3ISA
             // call shader to prepare the flush operations
             wf->computeUnit->shader->prepareFlush(gpuDynInst);
 
-            wf->computeUnit->completedWGs++;
+            wf->computeUnit->stats.completedWGs++;
         } else {
             wf->computeUnit->shader->dispatcher().scheduleDispatch();
         }
@@ -3902,7 +3900,7 @@ namespace Gcn3ISA
         Addr pc = wf->pc();
         ScalarRegI16 simm16 = instData.SIMM16;
 
-        pc = pc + ((ScalarRegI64)sext<16>(simm16 * 4LL)) + 4LL;
+        pc = pc + ((ScalarRegI64)sext<18>(simm16 * 4LL)) + 4LL;
 
         wf->pc(pc);
     }
@@ -3948,7 +3946,7 @@ namespace Gcn3ISA
         scc.read();
 
         if (!scc.rawData()) {
-            pc = pc + ((ScalarRegI64)sext<16>(simm16 * 4LL)) + 4LL;
+            pc = pc + ((ScalarRegI64)sext<18>(simm16 * 4LL)) + 4LL;
         }
 
         wf->pc(pc);
@@ -3977,7 +3975,7 @@ namespace Gcn3ISA
         scc.read();
 
         if (scc.rawData()) {
-            pc = pc + ((ScalarRegI64)sext<16>(simm16 * 4LL)) + 4LL;
+            pc = pc + ((ScalarRegI64)sext<18>(simm16 * 4LL)) + 4LL;
         }
 
         wf->pc(pc);
@@ -4007,7 +4005,7 @@ namespace Gcn3ISA
         vcc.read();
 
         if (!vcc.rawData()) {
-            pc = pc + ((ScalarRegI64)sext<16>(simm16 * 4LL)) + 4LL;
+            pc = pc + ((ScalarRegI64)sext<18>(simm16 * 4LL)) + 4LL;
         }
 
         wf->pc(pc);
@@ -4037,7 +4035,7 @@ namespace Gcn3ISA
         if (vcc.rawData()) {
             Addr pc = wf->pc();
             ScalarRegI16 simm16 = instData.SIMM16;
-            pc = pc + ((ScalarRegI64)sext<16>(simm16 * 4LL)) + 4LL;
+            pc = pc + ((ScalarRegI64)sext<18>(simm16 * 4LL)) + 4LL;
             wf->pc(pc);
         }
     }
@@ -4062,7 +4060,7 @@ namespace Gcn3ISA
         if (wf->execMask().none()) {
             Addr pc = wf->pc();
             ScalarRegI16 simm16 = instData.SIMM16;
-            pc = pc + ((ScalarRegI64)sext<16>(simm16 * 4LL)) + 4LL;
+            pc = pc + ((ScalarRegI64)sext<18>(simm16 * 4LL)) + 4LL;
             wf->pc(pc);
         }
     }
@@ -4087,7 +4085,7 @@ namespace Gcn3ISA
         if (wf->execMask().any()) {
             Addr pc = wf->pc();
             ScalarRegI16 simm16 = instData.SIMM16;
-            pc = pc + ((ScalarRegI64)sext<16>(simm16 * 4LL)) + 4LL;
+            pc = pc + ((ScalarRegI64)sext<18>(simm16 * 4LL)) + 4LL;
             wf->pc(pc);
         }
     }
@@ -4116,8 +4114,6 @@ namespace Gcn3ISA
 
         if (wf->hasBarrier()) {
             int bar_id = wf->barrierId();
-            assert(wf->getStatus() != Wavefront::S_BARRIER);
-            wf->setStatus(Wavefront::S_BARRIER);
             cu->incNumAtBarrier(bar_id);
             DPRINTF(GPUSync, "CU[%d] WF[%d][%d] Wave[%d] - Stalling at "
                     "barrier Id%d. %d waves now at barrier, %d waves "
@@ -4189,6 +4185,8 @@ namespace Gcn3ISA
     Inst_SOPP__S_SLEEP::Inst_SOPP__S_SLEEP(InFmt_SOPP *iFmt)
         : Inst_SOPP(iFmt, "s_sleep")
     {
+        setFlag(ALU);
+        setFlag(Sleep);
     } // Inst_SOPP__S_SLEEP
 
     Inst_SOPP__S_SLEEP::~Inst_SOPP__S_SLEEP()
@@ -4199,8 +4197,12 @@ namespace Gcn3ISA
     void
     Inst_SOPP__S_SLEEP::execute(GPUDynInstPtr gpuDynInst)
     {
-        panicUnimplemented();
-    }
+        ScalarRegI32 simm16 = (ScalarRegI32)instData.SIMM16;
+        gpuDynInst->wavefront()->setStatus(Wavefront::S_STALLED_SLEEP);
+        // sleep duration is specified in multiples of 64 cycles
+        gpuDynInst->wavefront()->setSleepTime(64 * simm16);
+    } // execute
+    // --- Inst_SOPP__S_SETPRIO class methods ---
 
     Inst_SOPP__S_SETPRIO::Inst_SOPP__S_SETPRIO(InFmt_SOPP *iFmt)
         : Inst_SOPP(iFmt, "s_setprio")

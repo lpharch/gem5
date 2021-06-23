@@ -29,8 +29,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * Authors: John Kalamatianos
  */
 
 #ifndef __GPU_COMPUTE_SCALAR_MEMORY_PIPELINE_HH__
@@ -85,7 +83,6 @@ class ScalarMemPipeline
     }
 
     const std::string& name() const { return _name; }
-    void regStats();
 
   private:
     ComputeUnit &computeUnit;

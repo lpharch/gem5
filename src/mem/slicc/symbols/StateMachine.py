@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 ARM Limited
+# Copyright (c) 2019-2021 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -328,6 +328,7 @@ class $c_ident : public AbstractController
     GPUCoalescer* getGPUCoalescer() const;
 
     bool functionalReadBuffers(PacketPtr&);
+    bool functionalReadBuffers(PacketPtr&, WriteMask&);
     int functionalWriteBuffers(PacketPtr&);
 
     void countTransition(${ident}_State state, ${ident}_Event event);
@@ -524,11 +525,6 @@ void unset_tbe(${{self.TBEType.c_ident}}*& m_tbe_ptr);
         for include_path in includes:
             code('#include "${{include_path}}"')
 
-        code('''
-
-using namespace std;
-''')
-
         # include object classes
         seen_types = set()
         for var in self.objects:
@@ -544,7 +540,7 @@ std::vector<Stats::Vector *>  $c_ident::eventVec;
 std::vector<std::vector<Stats::Vector *> >  $c_ident::transVec;
 
 // for adding information to the protocol debug trace
-stringstream ${ident}_transitionComment;
+std::stringstream ${ident}_transitionComment;
 
 #ifndef NDEBUG
 #define APPEND_TRANSITION_COMMENT(str) (${ident}_transitionComment << str)
@@ -854,22 +850,41 @@ $c_ident::regStats()
             }
         }
     }
+
     for (${ident}_Event event = ${ident}_Event_FIRST;
                  event < ${ident}_Event_NUM; ++event) {
         std::string stat_name =
             "outTransLatHist." + ${ident}_Event_to_string(event);
         Stats::Histogram* t = new Stats::Histogram(&stats, stat_name.c_str());
-        stats.m_outTransLatHist.push_back(t);
+        stats.outTransLatHist.push_back(t);
         t->init(5);
         t->flags(Stats::pdf | Stats::total |
                  Stats::oneline | Stats::nozero);
+
+        Stats::Scalar* r = new Stats::Scalar(&stats,
+                                             (stat_name + ".retries").c_str());
+        stats.outTransLatHistRetries.push_back(r);
+        r->flags(Stats::nozero);
     }
+
     for (${ident}_Event event = ${ident}_Event_FIRST;
                  event < ${ident}_Event_NUM; ++event) {
-        stats.m_inTransLatHist.emplace_back();
+        std::string stat_name = ".inTransLatHist." +
+                                ${ident}_Event_to_string(event);
+        Stats::Scalar* r = new Stats::Scalar(&stats,
+                                             (stat_name + ".total").c_str());
+        stats.inTransLatTotal.push_back(r);
+        r->flags(Stats::nozero);
+
+        r = new Stats::Scalar(&stats,
+                              (stat_name + ".retries").c_str());
+        stats.inTransLatRetries.push_back(r);
+        r->flags(Stats::nozero);
+
+        stats.inTransLatHist.emplace_back();
         for (${ident}_State initial_state = ${ident}_State_FIRST;
              initial_state < ${ident}_State_NUM; ++initial_state) {
-            stats.m_inTransLatHist.back().emplace_back();
+            stats.inTransLatHist.back().emplace_back();
             for (${ident}_State final_state = ${ident}_State_FIRST;
                  final_state < ${ident}_State_NUM; ++final_state) {
                 std::string stat_name = "inTransLatHist." +
@@ -878,7 +893,7 @@ $c_ident::regStats()
                     ${ident}_State_to_string(final_state);
                 Stats::Histogram* t =
                     new Stats::Histogram(&stats, stat_name.c_str());
-                stats.m_inTransLatHist.back().back().push_back(t);
+                stats.inTransLatHist.back().back().push_back(t);
                 t->init(5);
                 t->flags(Stats::pdf | Stats::total |
                          Stats::oneline | Stats::nozero);
@@ -978,7 +993,7 @@ $c_ident::getMemRespQueue() const
 }
 
 void
-$c_ident::print(ostream& out) const
+$c_ident::print(std::ostream& out) const
 {
     out << "[$c_ident " << m_version << "]";
 }
@@ -1168,6 +1183,27 @@ $c_ident::functionalReadBuffers(PacketPtr& pkt)
         code('''
     return false;
 }
+
+bool
+$c_ident::functionalReadBuffers(PacketPtr& pkt, WriteMask &mask)
+{
+    bool read = false;
+''')
+        for var in self.objects:
+            vtype = var.type
+            if vtype.isBuffer:
+                vid = "m_%s_ptr" % var.ident
+                code('if ($vid->functionalRead(pkt, mask)) read = true;')
+
+        for var in self.config_parameters:
+            vtype = var.type_ast.type
+            if vtype.isBuffer:
+                vid = "m_%s_ptr" % var.ident
+                code('if ($vid->functionalRead(pkt, mask)) read = true;')
+
+        code('''
+    return read;
+}
 ''')
 
         code.write(path, "%s.cc" % c_ident)
@@ -1221,8 +1257,6 @@ $c_ident::functionalReadBuffers(PacketPtr& pkt)
 
         code('''
 
-using namespace std;
-
 void
 ${ident}_Controller::wakeup()
 {
@@ -1238,7 +1272,7 @@ ${ident}_Controller::wakeup()
         assert(counter <= m_transitions_per_cycle);
         if (counter == m_transitions_per_cycle) {
             // Count how often we are fully utilized
-            stats.m_fully_busy_cycles++;
+            stats.fullyBusyCycles++;
 
             // Wakeup in another cycle and try again
             scheduleEvent(Cycles(1));

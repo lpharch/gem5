@@ -47,13 +47,7 @@ namespace MipsISA
 class Interrupts : public BaseInterrupts
 {
   public:
-    typedef MipsInterruptsParams Params;
-
-    const Params &
-    params() const
-    {
-        return dynamic_cast<const Params &>(_params);
-    }
+    using Params = MipsInterruptsParams;
 
     Interrupts(const Params &p) : BaseInterrupts(p) {}
 

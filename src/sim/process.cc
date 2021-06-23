@@ -67,9 +67,6 @@
 #include "sim/syscall_desc.hh"
 #include "sim/system.hh"
 
-using namespace std;
-using namespace TheISA;
-
 namespace
 {
 
@@ -127,9 +124,10 @@ Process::Process(const ProcessParams &params, EmulationPageTable *pTable,
       _gid(params.gid), _egid(params.egid),
       _pid(params.pid), _ppid(params.ppid),
       _pgid(params.pgid), drivers(params.drivers),
-      fds(make_shared<FDArray>(params.input, params.output, params.errout)),
+      fds(std::make_shared<FDArray>(
+                  params.input, params.output, params.errout)),
       childClearTID(0),
-      ADD_STAT(numSyscalls, "Number of system calls")
+      ADD_STAT(numSyscalls, UNIT_COUNT, "Number of system calls")
 {
     if (_pid >= System::maxPID)
         fatal("_pid is too large: %d", _pid);
@@ -189,7 +187,7 @@ Process::clone(ThreadContext *otc, ThreadContext *ntc,
          * Duplicate the process memory address space. The state needs to be
          * copied over (rather than using pointers to share everything).
          */
-        typedef std::vector<pair<Addr,Addr>> MapVec;
+        typedef std::vector<std::pair<Addr,Addr>> MapVec;
         MapVec mappings;
         pTable->getMappings(&mappings);
 
@@ -307,6 +305,21 @@ Process::drain()
 void
 Process::allocateMem(Addr vaddr, int64_t size, bool clobber)
 {
+    // Check if the page has been mapped by other cores if not to clobber.
+    // When running multithreaded programs in SE-mode with DerivO3CPU model,
+    // there are cases where two or more cores have page faults on the same
+    // page in nearby ticks. When the cores try to handle the faults at the
+    // commit stage (also in nearby ticks/cycles), the first core will ask for
+    // a physical page frame to map with the virtual page. Other cores can
+    // return if the page has been mapped and `!clobber`.
+    if (!clobber) {
+        const EmulationPageTable::Entry *pte = pTable->lookup(vaddr);
+        if (pte) {
+            warn("Process::allocateMem: addr %#x already mapped\n", vaddr);
+            return;
+        }
+    }
+
     int npages = divCeil(size, pTable->pageSize());
     Addr paddr = system->allocPhysPages(npages);
     pTable->map(vaddr, paddr, size,

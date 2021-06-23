@@ -81,13 +81,7 @@ class I8259 : public BasicPioDevice
     void handleEOI(int line);
 
   public:
-    typedef I8259Params Params;
-
-    const Params &
-    params() const
-    {
-        return dynamic_cast<const Params &>(_params);
-    }
+    using Params = I8259Params;
 
     I8259(const Params &p);
 

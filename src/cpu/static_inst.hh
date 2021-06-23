@@ -85,23 +85,13 @@ class InstRecord;
 class StaticInst : public RefCounted, public StaticInstFlags
 {
   public:
-    /// Binary extended machine instruction type.
-    typedef TheISA::ExtMachInst ExtMachInst;
-
-    enum {
-        MaxInstSrcRegs = TheISA::MaxInstSrcRegs,        //< Max source regs
-        MaxInstDestRegs = TheISA::MaxInstDestRegs       //< Max dest regs
-    };
-
     using RegIdArrayPtr = RegId (StaticInst:: *)[];
 
   private:
     /// See srcRegIdx().
-    RegId _srcRegIdx[MaxInstSrcRegs];
     RegIdArrayPtr _srcRegIdxPtr = nullptr;
 
     /// See destRegIdx().
-    RegId _destRegIdx[MaxInstDestRegs];
     RegIdArrayPtr _destRegIdxPtr = nullptr;
 
   protected:
@@ -266,7 +256,9 @@ class StaticInst : public RefCounted, public StaticInstFlags
     static StaticInstPtr nopStaticInstPtr;
 
     /// The binary machine instruction.
-    const ExtMachInst machInst;
+    const TheISA::ExtMachInst machInst;
+
+    virtual uint64_t getEMI() const { return 0; }
 
   protected:
 
@@ -308,12 +300,9 @@ class StaticInst : public RefCounted, public StaticInstFlags
     /// default, since the decoder generally only overrides
     /// the fields that are meaningful for the particular
     /// instruction.
-    StaticInst(const char *_mnemonic, ExtMachInst _machInst, OpClass __opClass)
-        : _srcRegIdxPtr(
-                reinterpret_cast<RegIdArrayPtr>(&StaticInst::_srcRegIdx)),
-          _destRegIdxPtr(
-                reinterpret_cast<RegIdArrayPtr>(&StaticInst::_destRegIdx)),
-          _opClass(__opClass),
+    StaticInst(const char *_mnemonic, TheISA::ExtMachInst _machInst,
+            OpClass __opClass)
+        : _opClass(__opClass),
           _numSrcRegs(0), _numDestRegs(0), _numFPDestRegs(0),
           _numIntDestRegs(0), _numCCDestRegs(0), _numVecDestRegs(0),
           _numVecElemDestRegs(0), _numVecPredDestRegs(0), machInst(_machInst),

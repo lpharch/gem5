@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019,2020 ARM Limited
+ * Copyright (c) 2019-2021 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -49,7 +49,6 @@
 #include "debug/RubyQueue.hh"
 #include "mem/ruby/system/RubySystem.hh"
 
-using namespace std;
 using m5::stl_helpers::operator<<;
 
 MessageBuffer::MessageBuffer(const Params &p)
@@ -254,7 +253,7 @@ MessageBuffer::enqueue(MsgPtr message, Tick current_time, Tick delta)
 
     // Insert the message into the priority heap
     m_prio_heap.push_back(message);
-    push_heap(m_prio_heap.begin(), m_prio_heap.end(), greater<MsgPtr>());
+    push_heap(m_prio_heap.begin(), m_prio_heap.end(), std::greater<MsgPtr>());
     // Increment the number of messages statistic
     m_buf_msgs++;
 
@@ -293,7 +292,7 @@ MessageBuffer::dequeue(Tick current_time, bool decrement_messages)
         m_time_last_time_pop = current_time;
     }
 
-    pop_heap(m_prio_heap.begin(), m_prio_heap.end(), greater<MsgPtr>());
+    pop_heap(m_prio_heap.begin(), m_prio_heap.end(), std::greater<MsgPtr>());
     m_prio_heap.pop_back();
     if (decrement_messages) {
         // If the message will be removed from the queue, decrement the
@@ -340,18 +339,18 @@ MessageBuffer::recycle(Tick current_time, Tick recycle_latency)
     DPRINTF(RubyQueue, "Recycling.\n");
     assert(isReady(current_time));
     MsgPtr node = m_prio_heap.front();
-    pop_heap(m_prio_heap.begin(), m_prio_heap.end(), greater<MsgPtr>());
+    pop_heap(m_prio_heap.begin(), m_prio_heap.end(), std::greater<MsgPtr>());
 
     Tick future_time = current_time + recycle_latency;
     node->setLastEnqueueTime(future_time);
 
     m_prio_heap.back() = node;
-    push_heap(m_prio_heap.begin(), m_prio_heap.end(), greater<MsgPtr>());
+    push_heap(m_prio_heap.begin(), m_prio_heap.end(), std::greater<MsgPtr>());
     m_consumer->scheduleEventAbsolute(future_time);
 }
 
 void
-MessageBuffer::reanalyzeList(list<MsgPtr> &lt, Tick schdTick)
+MessageBuffer::reanalyzeList(std::list<MsgPtr> &lt, Tick schdTick)
 {
     while (!lt.empty()) {
         MsgPtr m = lt.front();
@@ -359,7 +358,7 @@ MessageBuffer::reanalyzeList(list<MsgPtr> &lt, Tick schdTick)
 
         m_prio_heap.push_back(m);
         push_heap(m_prio_heap.begin(), m_prio_heap.end(),
-                  greater<MsgPtr>());
+                  std::greater<MsgPtr>());
 
         m_consumer->scheduleEventAbsolute(schdTick);
 
@@ -467,15 +466,15 @@ MessageBuffer::isDeferredMsgMapEmpty(Addr addr) const
 }
 
 void
-MessageBuffer::print(ostream& out) const
+MessageBuffer::print(std::ostream& out) const
 {
     ccprintf(out, "[MessageBuffer: ");
     if (m_consumer != NULL) {
         ccprintf(out, " consumer-yes ");
     }
 
-    vector<MsgPtr> copy(m_prio_heap);
-    sort_heap(copy.begin(), copy.end(), greater<MsgPtr>());
+    std::vector<MsgPtr> copy(m_prio_heap);
+    std::sort_heap(copy.begin(), copy.end(), std::greater<MsgPtr>());
     ccprintf(out, "%s] %s", copy, name());
 }
 
@@ -487,7 +486,7 @@ MessageBuffer::isReady(Tick current_time) const
 }
 
 uint32_t
-MessageBuffer::functionalAccess(Packet *pkt, bool is_read)
+MessageBuffer::functionalAccess(Packet *pkt, bool is_read, WriteMask *mask)
 {
     DPRINTF(RubyQueue, "functional %s for %#x\n",
             is_read ? "read" : "write", pkt->getAddr());
@@ -498,8 +497,10 @@ MessageBuffer::functionalAccess(Packet *pkt, bool is_read)
     // correspond to the address in the packet.
     for (unsigned int i = 0; i < m_prio_heap.size(); ++i) {
         Message *msg = m_prio_heap[i].get();
-        if (is_read && msg->functionalRead(pkt))
+        if (is_read && !mask && msg->functionalRead(pkt))
             return 1;
+        else if (is_read && mask && msg->functionalRead(pkt, *mask))
+            num_functional_accesses++;
         else if (!is_read && msg->functionalWrite(pkt))
             num_functional_accesses++;
     }
@@ -514,8 +515,10 @@ MessageBuffer::functionalAccess(Packet *pkt, bool is_read)
             it != (map_iter->second).end(); ++it) {
 
             Message *msg = (*it).get();
-            if (is_read && msg->functionalRead(pkt))
+            if (is_read && !mask && msg->functionalRead(pkt))
                 return 1;
+            else if (is_read && mask && msg->functionalRead(pkt, *mask))
+                num_functional_accesses++;
             else if (!is_read && msg->functionalWrite(pkt))
                 num_functional_accesses++;
         }

@@ -356,13 +356,7 @@ class Pl111: public AmbaDmaDevice
     bool enableCapture;
 
   public:
-    typedef Pl111Params Params;
-
-    const Params &
-    params() const
-    {
-        return dynamic_cast<const Params &>(_params);
-    }
+    using Params = Pl111Params;
     Pl111(const Params &p);
     ~Pl111();
 

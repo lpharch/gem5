@@ -48,13 +48,7 @@ class EmuFreebsd : public SEWorkload
   public:
     using Params = ArmEmuFreebsdParams;
 
-  protected:
-    const Params &_params;
-
-  public:
-    const Params &params() const { return _params; }
-
-    EmuFreebsd(const Params &p) : SEWorkload(p), _params(p) {}
+    EmuFreebsd(const Params &p) : SEWorkload(p) {}
 
     struct BaseSyscallABI {};
     struct SyscallABI32 : public SEWorkload::SyscallABI32,

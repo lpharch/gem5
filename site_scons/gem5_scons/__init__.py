@@ -38,13 +38,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import print_function
-
 import os
 import sys
+import tempfile
 import textwrap
 
 from gem5_scons.util import get_termcap
+from gem5_scons.configure import Configure
 import SCons.Script
 
 termcap = get_termcap()
@@ -58,6 +58,25 @@ def strip_build_path(path, env):
     elif path.startswith(build_base):
         path = path[len(build_base):]
     return path
+
+def TempFileSpawn(scons_env):
+    old_pspawn = scons_env['PSPAWN']
+    old_spawn = scons_env['SPAWN']
+
+    def wrapper(old, sh, esc, cmd, sh_args, *py_args):
+        with tempfile.NamedTemporaryFile() as temp:
+            temp.write(' '.join(sh_args).encode())
+            temp.flush()
+            sh_args = [sh, esc(temp.name)]
+            return old(sh, esc, sh, sh_args, *py_args)
+
+    def new_pspawn(sh, esc, cmd, args, sh_env, stdout, stderr):
+        return wrapper(old_pspawn, sh, esc, cmd, args, sh_env, stdout, stderr)
+    def new_spawn(sh, esc, cmd, args, sh_env):
+        return wrapper(old_spawn, sh, esc, cmd, args, sh_env)
+
+    scons_env['PSPAWN'] = new_pspawn
+    scons_env['SPAWN'] = new_spawn
 
 # Generate a string of the form:
 #   common/path/prefix/src1, src2 -> tgt1, tgt2
@@ -202,4 +221,20 @@ def error(*args, **kwargs):
     print_message('Error: ', termcap.Red, message, **kwargs)
     SCons.Script.Exit(1)
 
-__all__ = ['Transform', 'warning', 'error']
+def parse_build_path(target):
+    path_dirs = target.split('/')
+
+    # Pop off the target file.
+    path_dirs.pop()
+
+    # Search backwards for the "build" directory. Whatever was just before it
+    # was the name of the variant.
+    variant_dir = path_dirs.pop()
+    while path_dirs and path_dirs[-1] != 'build':
+        variant_dir = path_dirs.pop()
+    if not path_dirs:
+        error("No non-leaf 'build' dir found on target path.", t)
+
+    return os.path.join('/', *path_dirs), variant_dir
+
+__all__ = ['Configure', 'Transform', 'warning', 'error', 'parse_build_dir']

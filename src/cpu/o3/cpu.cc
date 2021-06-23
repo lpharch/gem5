@@ -64,9 +64,6 @@
 
 struct BaseCPUParams;
 
-using namespace TheISA;
-using namespace std;
-
 BaseO3CPU::BaseO3CPU(const BaseCPUParams &params)
     : BaseCPU(params)
 {
@@ -381,33 +378,43 @@ template <class Impl>
 FullO3CPU<Impl>::
 FullO3CPUStats::FullO3CPUStats(FullO3CPU *cpu)
     : Stats::Group(cpu),
-      ADD_STAT(timesIdled,
+      ADD_STAT(timesIdled, UNIT_COUNT,
                "Number of times that the entire CPU went into an idle state "
                "and unscheduled itself"),
-      ADD_STAT(idleCycles,
+      ADD_STAT(idleCycles, UNIT_CYCLE,
                "Total number of cycles that the CPU has spent unscheduled due "
                "to idling"),
-      ADD_STAT(quiesceCycles,
+      ADD_STAT(quiesceCycles, UNIT_CYCLE,
                "Total number of cycles that CPU has spent quiesced or waiting "
                "for an interrupt"),
-      ADD_STAT(committedInsts, "Number of Instructions Simulated"),
-      ADD_STAT(committedOps, "Number of Ops (including micro ops) Simulated"),
-      ADD_STAT(cpi, "CPI: Cycles Per Instruction"),
-      ADD_STAT(totalCpi, "CPI: Total CPI of All Threads"),
-      ADD_STAT(ipc, "IPC: Instructions Per Cycle"),
-      ADD_STAT(totalIpc, "IPC: Total IPC of All Threads"),
-      ADD_STAT(intRegfileReads, "Number of integer regfile reads"),
-      ADD_STAT(intRegfileWrites, "Number of integer regfile writes"),
-      ADD_STAT(fpRegfileReads, "Number of floating regfile reads"),
-      ADD_STAT(fpRegfileWrites, "Number of floating regfile writes"),
-      ADD_STAT(vecRegfileReads, "number of vector regfile reads"),
-      ADD_STAT(vecRegfileWrites, "number of vector regfile writes"),
-      ADD_STAT(vecPredRegfileReads, "number of predicate regfile reads"),
-      ADD_STAT(vecPredRegfileWrites, "number of predicate regfile writes"),
-      ADD_STAT(ccRegfileReads, "number of cc regfile reads"),
-      ADD_STAT(ccRegfileWrites, "number of cc regfile writes"),
-      ADD_STAT(miscRegfileReads, "number of misc regfile reads"),
-      ADD_STAT(miscRegfileWrites, "number of misc regfile writes")
+      ADD_STAT(committedInsts, UNIT_COUNT, "Number of Instructions Simulated"),
+      ADD_STAT(committedOps, UNIT_COUNT,
+               "Number of Ops (including micro ops) Simulated"),
+      ADD_STAT(cpi, UNIT_RATE(Stats::Units::Cycle, Stats::Units::Count),
+               "CPI: Cycles Per Instruction"),
+      ADD_STAT(totalCpi, UNIT_RATE(Stats::Units::Cycle, Stats::Units::Count),
+               "CPI: Total CPI of All Threads"),
+      ADD_STAT(ipc, UNIT_RATE(Stats::Units::Count, Stats::Units::Cycle),
+               "IPC: Instructions Per Cycle"),
+      ADD_STAT(totalIpc, UNIT_RATE(Stats::Units::Count, Stats::Units::Cycle),
+               "IPC: Total IPC of All Threads"),
+      ADD_STAT(intRegfileReads, UNIT_COUNT, "Number of integer regfile reads"),
+      ADD_STAT(intRegfileWrites, UNIT_COUNT,
+               "Number of integer regfile writes"),
+      ADD_STAT(fpRegfileReads, UNIT_COUNT, "Number of floating regfile reads"),
+      ADD_STAT(fpRegfileWrites, UNIT_COUNT,
+               "Number of floating regfile writes"),
+      ADD_STAT(vecRegfileReads, UNIT_COUNT, "number of vector regfile reads"),
+      ADD_STAT(vecRegfileWrites, UNIT_COUNT,
+               "number of vector regfile writes"),
+      ADD_STAT(vecPredRegfileReads, UNIT_COUNT,
+               "number of predicate regfile reads"),
+      ADD_STAT(vecPredRegfileWrites, UNIT_COUNT,
+               "number of predicate regfile writes"),
+      ADD_STAT(ccRegfileReads, UNIT_COUNT, "number of cc regfile reads"),
+      ADD_STAT(ccRegfileWrites, UNIT_COUNT, "number of cc regfile writes"),
+      ADD_STAT(miscRegfileReads, UNIT_COUNT, "number of misc regfile reads"),
+      ADD_STAT(miscRegfileWrites, UNIT_COUNT, "number of misc regfile writes")
 {
     // Register any of the O3CPU's stats here.
     timesIdled
@@ -581,7 +588,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::activateThread(ThreadID tid)
 {
-    list<ThreadID>::iterator isActive =
+    std::list<ThreadID>::iterator isActive =
         std::find(activeThreads.begin(), activeThreads.end(), tid);
 
     DPRINTF(O3CPU, "[tid:%i] Calling activate thread.\n", tid);
@@ -604,7 +611,7 @@ FullO3CPU<Impl>::deactivateThread(ThreadID tid)
     assert(!commit.executingHtmTransaction(tid));
 
     //Remove From Active List, if Active
-    list<ThreadID>::iterator thread_it =
+    std::list<ThreadID>::iterator thread_it =
         std::find(activeThreads.begin(), activeThreads.end(), tid);
 
     DPRINTF(O3CPU, "[tid:%i] Calling deactivate thread.\n", tid);
@@ -1185,44 +1192,40 @@ FullO3CPU<Impl>::readFloatReg(PhysRegIdPtr phys_reg)
 }
 
 template <class Impl>
-auto
+const TheISA::VecRegContainer&
 FullO3CPU<Impl>::readVecReg(PhysRegIdPtr phys_reg) const
-        -> const VecRegContainer&
 {
     cpuStats.vecRegfileReads++;
     return regFile.readVecReg(phys_reg);
 }
 
 template <class Impl>
-auto
+TheISA::VecRegContainer&
 FullO3CPU<Impl>::getWritableVecReg(PhysRegIdPtr phys_reg)
-        -> VecRegContainer&
 {
     cpuStats.vecRegfileWrites++;
     return regFile.getWritableVecReg(phys_reg);
 }
 
 template <class Impl>
-auto
-FullO3CPU<Impl>::readVecElem(PhysRegIdPtr phys_reg) const -> const VecElem&
+const TheISA::VecElem&
+FullO3CPU<Impl>::readVecElem(PhysRegIdPtr phys_reg) const
 {
     cpuStats.vecRegfileReads++;
     return regFile.readVecElem(phys_reg);
 }
 
 template <class Impl>
-auto
+const TheISA::VecPredRegContainer&
 FullO3CPU<Impl>::readVecPredReg(PhysRegIdPtr phys_reg) const
-        -> const VecPredRegContainer&
 {
     cpuStats.vecPredRegfileReads++;
     return regFile.readVecPredReg(phys_reg);
 }
 
 template <class Impl>
-auto
+TheISA::VecPredRegContainer&
 FullO3CPU<Impl>::getWritableVecPredReg(PhysRegIdPtr phys_reg)
-        -> VecPredRegContainer&
 {
     cpuStats.vecPredRegfileWrites++;
     return regFile.getWritableVecPredReg(phys_reg);
@@ -1254,7 +1257,8 @@ FullO3CPU<Impl>::setFloatReg(PhysRegIdPtr phys_reg, RegVal val)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::setVecReg(PhysRegIdPtr phys_reg, const VecRegContainer& val)
+FullO3CPU<Impl>::setVecReg(PhysRegIdPtr phys_reg,
+        const TheISA::VecRegContainer& val)
 {
     cpuStats.vecRegfileWrites++;
     regFile.setVecReg(phys_reg, val);
@@ -1262,7 +1266,7 @@ FullO3CPU<Impl>::setVecReg(PhysRegIdPtr phys_reg, const VecRegContainer& val)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::setVecElem(PhysRegIdPtr phys_reg, const VecElem& val)
+FullO3CPU<Impl>::setVecElem(PhysRegIdPtr phys_reg, const TheISA::VecElem& val)
 {
     cpuStats.vecRegfileWrites++;
     regFile.setVecElem(phys_reg, val);
@@ -1271,7 +1275,7 @@ FullO3CPU<Impl>::setVecElem(PhysRegIdPtr phys_reg, const VecElem& val)
 template <class Impl>
 void
 FullO3CPU<Impl>::setVecPredReg(PhysRegIdPtr phys_reg,
-                               const VecPredRegContainer& val)
+                               const TheISA::VecPredRegContainer& val)
 {
     cpuStats.vecPredRegfileWrites++;
     regFile.setVecPredReg(phys_reg, val);
@@ -1308,9 +1312,8 @@ FullO3CPU<Impl>::readArchFloatReg(int reg_idx, ThreadID tid)
 }
 
 template <class Impl>
-auto
+const TheISA::VecRegContainer&
 FullO3CPU<Impl>::readArchVecReg(int reg_idx, ThreadID tid) const
-        -> const VecRegContainer&
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(
                 RegId(VecRegClass, reg_idx));
@@ -1318,9 +1321,8 @@ FullO3CPU<Impl>::readArchVecReg(int reg_idx, ThreadID tid) const
 }
 
 template <class Impl>
-auto
+TheISA::VecRegContainer&
 FullO3CPU<Impl>::getWritableArchVecReg(int reg_idx, ThreadID tid)
-        -> VecRegContainer&
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(
                 RegId(VecRegClass, reg_idx));
@@ -1328,9 +1330,9 @@ FullO3CPU<Impl>::getWritableArchVecReg(int reg_idx, ThreadID tid)
 }
 
 template <class Impl>
-auto
-FullO3CPU<Impl>::readArchVecElem(const RegIndex& reg_idx, const ElemIndex& ldx,
-                                 ThreadID tid) const -> const VecElem&
+const TheISA::VecElem&
+FullO3CPU<Impl>::readArchVecElem(
+        const RegIndex& reg_idx, const ElemIndex& ldx, ThreadID tid) const
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(
                                 RegId(VecElemClass, reg_idx, ldx));
@@ -1338,9 +1340,8 @@ FullO3CPU<Impl>::readArchVecElem(const RegIndex& reg_idx, const ElemIndex& ldx,
 }
 
 template <class Impl>
-auto
+const TheISA::VecPredRegContainer&
 FullO3CPU<Impl>::readArchVecPredReg(int reg_idx, ThreadID tid) const
-        -> const VecPredRegContainer&
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(
                 RegId(VecPredRegClass, reg_idx));
@@ -1348,9 +1349,8 @@ FullO3CPU<Impl>::readArchVecPredReg(int reg_idx, ThreadID tid) const
 }
 
 template <class Impl>
-auto
+TheISA::VecPredRegContainer&
 FullO3CPU<Impl>::getWritableArchVecPredReg(int reg_idx, ThreadID tid)
-        -> VecPredRegContainer&
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(
                 RegId(VecPredRegClass, reg_idx));
@@ -1392,8 +1392,8 @@ FullO3CPU<Impl>::setArchFloatReg(int reg_idx, RegVal val, ThreadID tid)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::setArchVecReg(int reg_idx, const VecRegContainer& val,
-                               ThreadID tid)
+FullO3CPU<Impl>::setArchVecReg(int reg_idx,
+        const TheISA::VecRegContainer& val, ThreadID tid)
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(
                 RegId(VecRegClass, reg_idx));
@@ -1403,7 +1403,7 @@ FullO3CPU<Impl>::setArchVecReg(int reg_idx, const VecRegContainer& val,
 template <class Impl>
 void
 FullO3CPU<Impl>::setArchVecElem(const RegIndex& reg_idx, const ElemIndex& ldx,
-                                const VecElem& val, ThreadID tid)
+                                const TheISA::VecElem& val, ThreadID tid)
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(
                 RegId(VecElemClass, reg_idx, ldx));
@@ -1412,8 +1412,8 @@ FullO3CPU<Impl>::setArchVecElem(const RegIndex& reg_idx, const ElemIndex& ldx,
 
 template <class Impl>
 void
-FullO3CPU<Impl>::setArchVecPredReg(int reg_idx, const VecPredRegContainer& val,
-                                   ThreadID tid)
+FullO3CPU<Impl>::setArchVecPredReg(int reg_idx,
+        const TheISA::VecPredRegContainer& val, ThreadID tid)
 {
     PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(
                 RegId(VecPredRegClass, reg_idx));
@@ -1722,7 +1722,7 @@ FullO3CPU<Impl>::updateThreadPriority()
     if (activeThreads.size() > 1) {
         //DEFAULT TO ROUND ROBIN SCHEME
         //e.g. Move highest priority to end of thread list
-        list<ThreadID>::iterator list_begin = activeThreads.begin();
+        std::list<ThreadID>::iterator list_begin = activeThreads.begin();
 
         unsigned high_thread = *list_begin;
 

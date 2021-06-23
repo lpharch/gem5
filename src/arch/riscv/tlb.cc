@@ -2,6 +2,7 @@
  * Copyright (c) 2001-2005 The Regents of The University of Michigan
  * Copyright (c) 2007 MIPS Technologies, Inc.
  * Copyright (c) 2020 Barkhausen Institut
+ * Copyright (c) 2021 Huawei International
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,10 +35,10 @@
 #include <vector>
 
 #include "arch/riscv/faults.hh"
-#include "arch/riscv/fs_workload.hh"
 #include "arch/riscv/mmu.hh"
 #include "arch/riscv/pagetable.hh"
 #include "arch/riscv/pagetable_walker.hh"
+#include "arch/riscv/pma_checker.hh"
 #include "arch/riscv/pra_constants.hh"
 #include "arch/riscv/utility.hh"
 #include "base/inifile.hh"
@@ -52,7 +53,6 @@
 #include "sim/process.hh"
 #include "sim/system.hh"
 
-using namespace std;
 using namespace RiscvISA;
 
 ///////////////////////////////////////////////////////////////////////
@@ -66,8 +66,9 @@ buildKey(Addr vpn, uint16_t asid)
     return (static_cast<Addr>(asid) << 48) | vpn;
 }
 
-TLB::TLB(const Params &p)
-    : BaseTLB(p), size(p.size), tlb(size), lruSeq(0), stats(this)
+TLB::TLB(const Params &p) :
+    BaseTLB(p), size(p.size), tlb(size),
+    lruSeq(0), stats(this), pma(p.pma_checker)
 {
     for (size_t x = 0; x < size; x++) {
         tlb[x].trieHandle = NULL;
@@ -109,21 +110,21 @@ TLB::lookup(Addr vpn, uint16_t asid, Mode mode, bool hidden)
             entry->lruSeq = nextSeq();
 
         if (mode == Write)
-            stats.write_accesses++;
+            stats.writeAccesses++;
         else
-            stats.read_accesses++;
+            stats.readAccesses++;
 
         if (!entry) {
             if (mode == Write)
-                stats.write_misses++;
+                stats.writeMisses++;
             else
-                stats.read_misses++;
+                stats.readMisses++;
         }
         else {
             if (mode == Write)
-                stats.write_hits++;
+                stats.writeHits++;
             else
-                stats.read_hits++;
+                stats.readHits++;
         }
 
         DPRINTF(TLBVerbose, "lookup(vpn=%#x, asid=%#x): %s ppn %#x\n",
@@ -359,7 +360,11 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
                 code = ExceptionCode::STORE_ACCESS;
             else
                 code = ExceptionCode::INST_ACCESS;
-            fault = make_shared<AddressFault>(req->getVaddr(), code);
+            fault = std::make_shared<AddressFault>(req->getVaddr(), code);
+        }
+
+        if (!delayed && fault == NoFault) {
+            pma->check(req);
         }
 
         return fault;
@@ -373,7 +378,7 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
         // the start.
         assert(req->getSize() > 0);
         if (req->getVaddr() + req->getSize() - 1 < req->getVaddr())
-            return make_shared<GenericPageTableFault>(req->getVaddr());
+            return std::make_shared<GenericPageTableFault>(req->getVaddr());
 
         Process * p = tc->getProcessPtr();
 
@@ -499,16 +504,23 @@ TLB::unserialize(CheckpointIn &cp)
 
 TLB::TlbStats::TlbStats(Stats::Group *parent)
   : Stats::Group(parent),
-    ADD_STAT(read_hits, "read hits"),
-    ADD_STAT(read_misses, "read misses"),
-    ADD_STAT(read_accesses, "read accesses"),
-    ADD_STAT(write_hits, "write hits"),
-    ADD_STAT(write_misses, "write misses"),
-    ADD_STAT(write_accesses, "write accesses"),
-    ADD_STAT(hits, "Total TLB (read and write) hits", read_hits + write_hits),
-    ADD_STAT(misses, "Total TLB (read and write) misses",
-        read_misses + write_misses),
-    ADD_STAT(accesses, "Total TLB (read and write) accesses",
-        read_accesses + write_accesses)
+    ADD_STAT(readHits, UNIT_COUNT, "read hits"),
+    ADD_STAT(readMisses, UNIT_COUNT, "read misses"),
+    ADD_STAT(readAccesses, UNIT_COUNT, "read accesses"),
+    ADD_STAT(writeHits, UNIT_COUNT, "write hits"),
+    ADD_STAT(writeMisses, UNIT_COUNT, "write misses"),
+    ADD_STAT(writeAccesses, UNIT_COUNT, "write accesses"),
+    ADD_STAT(hits, UNIT_COUNT, "Total TLB (read and write) hits",
+             readHits + writeHits),
+    ADD_STAT(misses, UNIT_COUNT, "Total TLB (read and write) misses",
+             readMisses + writeMisses),
+    ADD_STAT(accesses, UNIT_COUNT, "Total TLB (read and write) accesses",
+             readAccesses + writeAccesses)
 {
+}
+
+Port *
+TLB::getTableWalkerPort()
+{
+    return &walker->getPort("port");
 }

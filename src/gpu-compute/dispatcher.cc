@@ -49,28 +49,13 @@ GPUDispatcher::GPUDispatcher(const Params &p)
     : SimObject(p), shader(nullptr), gpuCmdProc(nullptr),
       tickEvent([this]{ exec(); },
           "GPU Dispatcher tick", false, Event::CPU_Tick_Pri),
-      dispatchActive(false)
+      dispatchActive(false), stats(this)
 {
     schedule(&tickEvent, 0);
 }
 
 GPUDispatcher::~GPUDispatcher()
 {
-}
-
-void
-GPUDispatcher::regStats()
-{
-    numKernelLaunched
-    .name(name() + ".num_kernel_launched")
-    .desc("number of kernel launched")
-    ;
-
-    cyclesWaitingForDispatch
-    .name(name() + ".cycles_wait_dispatch")
-    .desc("number of cycles with outstanding wavefronts "
-          "that are waiting to be dispatched")
-    ;
 }
 
 HSAQueueEntry*
@@ -127,7 +112,7 @@ GPUDispatcher::unserialize(CheckpointIn &cp)
 void
 GPUDispatcher::dispatch(HSAQueueEntry *task)
 {
-    ++numKernelLaunched;
+    ++stats.numKernelLaunched;
 
     DPRINTF(GPUDisp, "launching kernel: %s, dispatch ID: %d\n",
             task->kernelName(), task->dispatchId());
@@ -158,7 +143,7 @@ GPUDispatcher::exec()
     DPRINTF(GPUAgentDisp, "Launching %d Kernels\n", execIds.size());
 
     if (execIds.size() > 0) {
-        ++cyclesWaitingForDispatch;
+        ++stats.cyclesWaitingForDispatch;
     }
 
     /**
@@ -322,30 +307,20 @@ GPUDispatcher::notifyWgCompl(Wavefront *wf)
         gpuCmdProc->hsaPacketProc()
             .finishPkt(task->dispPktPtr(), task->queueId());
         if (task->completionSignal()) {
-            // The signal value is aligned 8 bytes from
-            // the actual handle in the runtime
-            Addr signal_addr = task->completionSignal() + sizeof(Addr);
-            DPRINTF(GPUDisp, "HSA AQL Kernel Complete! Triggering "
-                    "completion signal: %x!\n", signal_addr);
-
             /**
-             * HACK: The semantics of the HSA signal is to decrement
-             * the current signal value. We cheat here and read out
-             * he value from main memory using functional access and
-             * then just DMA the decremented value. This is because
-             * the DMA controller does not currently support GPU
-             * atomics.
-             */
-            auto *tc = gpuCmdProc->system()->threads[0];
-            auto &virt_proxy = tc->getVirtProxy();
-            TypedBufferArg<Addr> prev_signal(signal_addr);
-            prev_signal.copyIn(virt_proxy);
+            * HACK: The semantics of the HSA signal is to decrement
+            * the current signal value. We cheat here and read out
+            * he value from main memory using functional access and
+            * then just DMA the decremented value.
+            */
+            uint64_t signal_value =
+                gpuCmdProc->functionalReadHsaSignal(task->completionSignal());
 
-            Addr *new_signal = new Addr;
-            *new_signal = (Addr)*prev_signal - 1;
+            DPRINTF(GPUDisp, "HSA AQL Kernel Complete with completion "
+                    "signal! Addr: %d\n", task->completionSignal());
 
-            gpuCmdProc->dmaWriteVirt(signal_addr, sizeof(Addr), nullptr,
-                new_signal, 0);
+            gpuCmdProc->updateHsaSignal(task->completionSignal(),
+                                        signal_value - 1);
         } else {
             DPRINTF(GPUDisp, "HSA AQL Kernel Complete! No completion "
                 "signal\n");
@@ -367,4 +342,12 @@ GPUDispatcher::scheduleDispatch()
     if (!tickEvent.scheduled()) {
         schedule(&tickEvent, curTick() + shader->clockPeriod());
     }
+}
+
+GPUDispatcher::GPUDispatcherStats::GPUDispatcherStats(Stats::Group *parent)
+    : Stats::Group(parent),
+      ADD_STAT(numKernelLaunched, "number of kernel launched"),
+      ADD_STAT(cyclesWaitingForDispatch, "number of cycles with outstanding "
+               "wavefronts that are waiting to be dispatched")
+{
 }

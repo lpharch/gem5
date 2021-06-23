@@ -41,8 +41,7 @@
 #include "dev/platform.hh"
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
-
-using namespace std;
+#include "sim/serialize.hh"
 
 void
 Uart8250::processIntrEvent(int intrBit)
@@ -84,7 +83,8 @@ Uart8250::scheduleIntr(Event *event)
 
 
 Uart8250::Uart8250(const Params &p)
-    : Uart(p, 8), registers(this, name() + ".registers"), lastTxInt(0),
+    : Uart(p, p.pio_size), registers(this, name() + ".registers"),
+      lastTxInt(0),
       txIntrEvent([this]{ processIntrEvent(TX_INT); }, "TX"),
       rxIntrEvent([this]{ processIntrEvent(RX_INT); }, "RX")
 {

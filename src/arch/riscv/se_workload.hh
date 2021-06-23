@@ -28,11 +28,11 @@
 #ifndef __ARCH_RISCV_SE_WORKLOAD_HH__
 #define __ARCH_RISCV_SE_WORKLOAD_HH__
 
+#include "arch/riscv/reg_abi.hh"
 #include "arch/riscv/registers.hh"
 #include "params/RiscvSEWorkload.hh"
 #include "sim/se_workload.hh"
 #include "sim/syscall_abi.hh"
-#include "sim/syscall_desc.hh"
 
 namespace RiscvISA
 {
@@ -42,21 +42,12 @@ class SEWorkload : public ::SEWorkload
   public:
     using Params = RiscvSEWorkloadParams;
 
-  protected:
-    const Params &_params;
-
-  public:
-    const Params &params() const { return _params; }
-
-    SEWorkload(const Params &p) : ::SEWorkload(p), _params(p) {}
+    SEWorkload(const Params &p) : ::SEWorkload(p) {}
 
     ::Loader::Arch getArch() const override { return ::Loader::Riscv64; }
 
     //FIXME RISCV needs to handle 64 bit arguments in its 32 bit ISA.
-    struct SyscallABI : public GenericSyscallABI64
-    {
-        static const std::vector<int> ArgumentRegs;
-    };
+    using SyscallABI = RegABI64;
 };
 
 } // namespace RiscvISA

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 Advanced Micro Devices, Inc.
+ * Copyright (c) 2017-2021 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * For use for simulation and test purposes only
@@ -37,9 +37,9 @@
 /*
  * The tester includes the main ProtocolTester that manages all ports to the
  * memory system.
- * GpuThreads are mapped to certain data port(s)
+ * TesterThreads are mapped to certain data port(s)
  *
- * GpuThreads inject memory requests through their data ports.
+ * TesterThreads inject memory requests through their data ports.
  * The tester receives and validates responses from the memory.
  *
  * Main components
@@ -61,7 +61,7 @@
 #include "mem/token_port.hh"
 #include "params/ProtocolTester.hh"
 
-class GpuThread;
+class TesterThread;
 class CpuThread;
 class GpuWavefront;
 
@@ -98,8 +98,8 @@ class ProtocolTester : public ClockedObject
 
     struct SenderState : public Packet::SenderState
     {
-        GpuThread* th;
-        SenderState(GpuThread* _th)
+        TesterThread* th;
+        SenderState(TesterThread* _th)
         {
             assert(_th);
             th = _th;
@@ -143,6 +143,7 @@ class ProtocolTester : public ClockedObject
 
     // list of parameters taken from python scripts
     int numCpuPorts;
+    int numDmaPorts;
     int numVectorPorts;
     int numSqcPorts;
     int numScalarPorts;
@@ -164,13 +165,15 @@ class ProtocolTester : public ClockedObject
 
     // all available requestor ports connected to Ruby
     std::vector<RequestPort*> cpuPorts;      // cpu data ports
+    std::vector<RequestPort*> dmaPorts;      // DMA data ports
     std::vector<RequestPort*> cuVectorPorts; // ports to GPU vector cache
     std::vector<RequestPort*> cuSqcPorts;    // ports to GPU inst cache
     std::vector<RequestPort*> cuScalarPorts; // ports to GPU scalar cache
     std::vector<TokenManager*> cuTokenManagers;
     std::vector<GMTokenPort*> cuTokenPorts;
-    // all CPU and GPU threads
+    // all CPU, DMA, and GPU threads
     std::vector<CpuThread*> cpuThreads;
+    std::vector<DmaThread*> dmaThreads;
     std::vector<GpuWavefront*> wfs;
 
     // address manager that (1) generates DRF sequences of requests,
@@ -180,6 +183,7 @@ class ProtocolTester : public ClockedObject
 
     // number of CPUs and CUs
     int numCpus;
+    int numDmas;
     int numCus;
     // unique id of the next episode
     int nextEpisodeId;

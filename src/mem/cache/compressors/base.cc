@@ -227,18 +227,17 @@ Base::setSizeBits(CacheBlk* blk, const std::size_t size_bits)
 
 Base::BaseStats::BaseStats(Base& _compressor)
   : Stats::Group(&_compressor), compressor(_compressor),
-    compressions(this, "compressions",
-        "Total number of compressions"),
-    failedCompressions(this, "failed_compressions",
-        "Total number of failed compressions"),
-    compressionSize(this, "compression_size",
-        "Number of blocks that were compressed to this power of two size"),
-    compressionSizeBits(this, "compression_size_bits",
-        "Total compressed data size, in bits"),
-    avgCompressionSizeBits(this, "avg_compression_size_bits",
-        "Average compression size, in bits"),
-    decompressions(this, "total_decompressions",
-        "Total number of decompressions")
+    ADD_STAT(compressions, UNIT_COUNT, "Total number of compressions"),
+    ADD_STAT(failedCompressions, UNIT_COUNT,
+             "Total number of failed compressions"),
+    ADD_STAT(compressionSize, UNIT_COUNT,
+             "Number of blocks that were compressed to this power of two "
+             "size"),
+    ADD_STAT(compressionSizeBits, UNIT_BIT, "Total compressed data size"),
+    ADD_STAT(avgCompressionSizeBits,
+             UNIT_RATE(Stats::Units::Bit, Stats::Units::Count),
+             "Average compression size"),
+    ADD_STAT(decompressions, UNIT_COUNT, "Total number of decompressions")
 {
 }
 

@@ -71,11 +71,9 @@
 // Hack
 #include "sim/stat_control.hh"
 
-using namespace std;
-
 std::unique_ptr<BaseCPU::GlobalStats> BaseCPU::globalStats;
 
-vector<BaseCPU *> BaseCPU::cpuList;
+std::vector<BaseCPU *> BaseCPU::cpuList;
 
 // This variable reflects the max number of threads in any CPU.  Be
 // careful to only use it once all the CPUs that you care about have
@@ -156,7 +154,7 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
 
     functionTracingEnabled = false;
     if (p.function_trace) {
-        const string fname = csprintf("ftrace.%s", name());
+        const std::string fname = csprintf("ftrace.%s", name());
         functionTraceStream = simout.findOrCreate(fname)->stream();
 
         currentFunctionStart = currentFunctionEnd = 0;
@@ -372,9 +370,10 @@ BaseCPU::probeInstCommit(const StaticInstPtr &inst, Addr pc)
 BaseCPU::
 BaseCPUStats::BaseCPUStats(Stats::Group *parent)
     : Stats::Group(parent),
-      ADD_STAT(numCycles, "Number of cpu cycles simulated"),
-      ADD_STAT(numWorkItemsStarted, "Number of work items this cpu started"),
-      ADD_STAT(numWorkItemsCompleted,
+      ADD_STAT(numCycles, UNIT_CYCLE, "Number of cpu cycles simulated"),
+      ADD_STAT(numWorkItemsStarted, UNIT_COUNT,
+               "Number of work items this cpu started"),
+      ADD_STAT(numWorkItemsCompleted, UNIT_COUNT,
                "Number of work items this cpu completed")
 {
 }
@@ -395,7 +394,7 @@ BaseCPU::regStats()
     int size = threadContexts.size();
     if (size > 1) {
         for (int i = 0; i < size; ++i) {
-            stringstream namestr;
+            std::stringstream namestr;
             ccprintf(namestr, "%s.ctx%d", name(), i);
             threadContexts[i]->regStats(namestr.str());
         }
@@ -404,7 +403,7 @@ BaseCPU::regStats()
 }
 
 Port &
-BaseCPU::getPort(const string &if_name, PortID idx)
+BaseCPU::getPort(const std::string &if_name, PortID idx)
 {
     // Get the right port based on name. This applies to all the
     // subclasses of the base CPU and relies on their implementation
@@ -708,7 +707,7 @@ BaseCPU::traceFunctionsInternal(Addr pc)
         auto it = Loader::debugSymbolTable.findNearest(
                 pc, currentFunctionEnd);
 
-        string sym_str;
+        std::string sym_str;
         if (it == Loader::debugSymbolTable.end()) {
             // no symbol found: use addr as label
             sym_str = csprintf("%#x", pc);
@@ -734,12 +733,15 @@ BaseCPU::waitForRemoteGDB() const
 
 BaseCPU::GlobalStats::GlobalStats(::Stats::Group *parent)
     : ::Stats::Group(parent),
-    simInsts(this, "sim_insts", "Number of instructions simulated"),
-    simOps(this, "sim_ops", "Number of ops (including micro ops) simulated"),
-    hostInstRate(this, "host_inst_rate",
-                 "Simulator instruction rate (inst/s)"),
-    hostOpRate(this, "host_op_rate",
-               "Simulator op (including micro ops) rate (op/s)")
+    ADD_STAT(simInsts, UNIT_COUNT, "Number of instructions simulated"),
+    ADD_STAT(simOps, UNIT_COUNT,
+             "Number of ops (including micro ops) simulated"),
+    ADD_STAT(hostInstRate,
+             UNIT_RATE(Stats::Units::Count, Stats::Units::Second),
+             "Simulator instruction rate (inst/s)"),
+    ADD_STAT(hostOpRate,
+             UNIT_RATE(Stats::Units::Count, Stats::Units::Second),
+             "Simulator op (including micro ops) rate (op/s)")
 {
     simInsts
         .functor(BaseCPU::numSimulatedInsts)

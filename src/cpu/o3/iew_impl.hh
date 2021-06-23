@@ -60,8 +60,6 @@
 #include "debug/O3PipeView.hh"
 #include "params/DerivO3CPU.hh"
 
-using namespace std;
-
 template<class Impl>
 DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, const DerivO3CPUParams &params)
     : issueToExecQueue(params.backComSize, params.forwardComSize),
@@ -144,36 +142,46 @@ template <class Impl>
 DefaultIEW<Impl>::
 IEWStats::IEWStats(O3CPU *cpu)
     : Stats::Group(cpu),
-    ADD_STAT(idleCycles, "Number of cycles IEW is idle"),
-    ADD_STAT(squashCycles, "Number of cycles IEW is squashing"),
-    ADD_STAT(blockCycles, "Number of cycles IEW is blocking"),
-    ADD_STAT(unblockCycles, "Number of cycles IEW is unblocking"),
-    ADD_STAT(dispatchedInsts, "Number of instructions dispatched to IQ"),
-    ADD_STAT(dispSquashedInsts,
+    ADD_STAT(idleCycles, UNIT_CYCLE, "Number of cycles IEW is idle"),
+    ADD_STAT(squashCycles, UNIT_CYCLE, "Number of cycles IEW is squashing"),
+    ADD_STAT(blockCycles, UNIT_CYCLE, "Number of cycles IEW is blocking"),
+    ADD_STAT(unblockCycles, UNIT_CYCLE, "Number of cycles IEW is unblocking"),
+    ADD_STAT(dispatchedInsts, UNIT_COUNT,
+             "Number of instructions dispatched to IQ"),
+    ADD_STAT(dispSquashedInsts, UNIT_COUNT,
              "Number of squashed instructions skipped by dispatch"),
-    ADD_STAT(dispLoadInsts, "Number of dispatched load instructions"),
-    ADD_STAT(dispStoreInsts, "Number of dispatched store instructions"),
-    ADD_STAT(dispNonSpecInsts,
+    ADD_STAT(dispLoadInsts, UNIT_COUNT,
+             "Number of dispatched load instructions"),
+    ADD_STAT(dispStoreInsts, UNIT_COUNT,
+             "Number of dispatched store instructions"),
+    ADD_STAT(dispNonSpecInsts, UNIT_COUNT,
              "Number of dispatched non-speculative instructions"),
-    ADD_STAT(iqFullEvents,
+    ADD_STAT(iqFullEvents, UNIT_COUNT,
              "Number of times the IQ has become full, causing a stall"),
-    ADD_STAT(lsqFullEvents,
+    ADD_STAT(lsqFullEvents, UNIT_COUNT,
              "Number of times the LSQ has become full, causing a stall"),
-    ADD_STAT(memOrderViolationEvents, "Number of memory order violations"),
-    ADD_STAT(predictedTakenIncorrect,
+    ADD_STAT(memOrderViolationEvents, UNIT_COUNT,
+             "Number of memory order violations"),
+    ADD_STAT(predictedTakenIncorrect, UNIT_COUNT,
              "Number of branches that were predicted taken incorrectly"),
-    ADD_STAT(predictedNotTakenIncorrect,
+    ADD_STAT(predictedNotTakenIncorrect, UNIT_COUNT,
              "Number of branches that were predicted not taken incorrectly"),
-    ADD_STAT(branchMispredicts,
+    ADD_STAT(branchMispredicts, UNIT_COUNT,
              "Number of branch mispredicts detected at execute",
              predictedTakenIncorrect + predictedNotTakenIncorrect),
     executedInstStats(cpu),
-    ADD_STAT(instsToCommit, "Cumulative count of insts sent to commit"),
-    ADD_STAT(writebackCount, "Cumulative count of insts written-back"),
-    ADD_STAT(producerInst, "Number of instructions producing a value"),
-    ADD_STAT(consumerInst, "Number of instructions consuming a value"),
-    ADD_STAT(wbRate, "Insts written-back per cycle"),
-    ADD_STAT(wbFanout, "Average fanout of values written-back")
+    ADD_STAT(instsToCommit, UNIT_COUNT,
+             "Cumulative count of insts sent to commit"),
+    ADD_STAT(writebackCount, UNIT_COUNT,
+             "Cumulative count of insts written-back"),
+    ADD_STAT(producerInst, UNIT_COUNT,
+             "Number of instructions producing a value"),
+    ADD_STAT(consumerInst, UNIT_COUNT,
+             "Number of instructions consuming a value"),
+    ADD_STAT(wbRate, UNIT_RATE(Stats::Units::Count, Stats::Units::Cycle),
+             "Insts written-back per cycle"),
+    ADD_STAT(wbFanout, UNIT_RATE(Stats::Units::Count, Stats::Units::Count),
+             "Average fanout of values written-back")
 {
     instsToCommit
         .init(cpu->numThreads)
@@ -204,17 +212,17 @@ template <class Impl>
 DefaultIEW<Impl>::IEWStats::
 ExecutedInstStats::ExecutedInstStats(O3CPU *cpu)
     : Stats::Group(cpu),
-    ADD_STAT(numInsts, "Number of executed instructions"),
-    ADD_STAT(numLoadInsts, "Number of load instructions executed"),
-    ADD_STAT(numSquashedInsts,
+    ADD_STAT(numInsts, UNIT_COUNT, "Number of executed instructions"),
+    ADD_STAT(numLoadInsts, UNIT_COUNT, "Number of load instructions executed"),
+    ADD_STAT(numSquashedInsts, UNIT_COUNT,
              "Number of squashed instructions skipped in execute"),
-    ADD_STAT(numSwp, "Number of swp insts executed"),
-    ADD_STAT(numNop, "Number of nop insts executed"),
-    ADD_STAT(numRefs, "Number of memory reference insts executed"),
-    ADD_STAT(numBranches, "Number of branches executed"),
-    ADD_STAT(numStoreInsts, "Number of stores executed"),
-    ADD_STAT(numRate, "Inst execution rate",
-             numInsts / cpu->baseStats.numCycles)
+    ADD_STAT(numSwp, UNIT_COUNT, "Number of swp insts executed"),
+    ADD_STAT(numNop, UNIT_COUNT, "Number of nop insts executed"),
+    ADD_STAT(numRefs, UNIT_COUNT, "Number of memory reference insts executed"),
+    ADD_STAT(numBranches, UNIT_COUNT, "Number of branches executed"),
+    ADD_STAT(numStoreInsts, UNIT_COUNT, "Number of stores executed"),
+    ADD_STAT(numRate, UNIT_RATE(Stats::Units::Count, Stats::Units::Cycle),
+             "Inst execution rate", numInsts / cpu->baseStats.numCycles)
 {
     numLoadInsts
         .init(cpu->numThreads)
@@ -319,7 +327,7 @@ DefaultIEW<Impl>::setIEWQueue(TimeBuffer<IEWStruct> *iq_ptr)
 
 template<class Impl>
 void
-DefaultIEW<Impl>::setActiveThreads(list<ThreadID> *at_ptr)
+DefaultIEW<Impl>::setActiveThreads(std::list<ThreadID> *at_ptr)
 {
     activeThreads = at_ptr;
 
@@ -632,8 +640,8 @@ DefaultIEW<Impl>::skidCount()
 {
     int max=0;
 
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
 
     while (threads != end) {
         ThreadID tid = *threads++;
@@ -649,8 +657,8 @@ template<class Impl>
 bool
 DefaultIEW<Impl>::skidsEmpty()
 {
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
 
     while (threads != end) {
         ThreadID tid = *threads++;
@@ -668,8 +676,8 @@ DefaultIEW<Impl>::updateStatus()
 {
     bool any_unblocking = false;
 
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
 
     while (threads != end) {
         ThreadID tid = *threads++;
@@ -1166,8 +1174,8 @@ DefaultIEW<Impl>::executeInsts()
     wbNumInst = 0;
     wbCycle = 0;
 
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
 
     while (threads != end) {
         ThreadID tid = *threads++;
@@ -1438,12 +1446,12 @@ DefaultIEW<Impl>::writebackInsts()
 
             for (int i = 0; i < inst->numDestRegs(); i++) {
                 // Mark register as ready if not pinned
-                if (inst->renamedDestRegIdx(i)->
+                if (inst->regs.renamedDestIdx(i)->
                         getNumPinnedWritesToComplete() == 0) {
                     DPRINTF(IEW,"Setting Destination Register %i (%s)\n",
-                            inst->renamedDestRegIdx(i)->index(),
-                            inst->renamedDestRegIdx(i)->className());
-                    scoreboard->setReg(inst->renamedDestRegIdx(i));
+                            inst->regs.renamedDestIdx(i)->index(),
+                            inst->regs.renamedDestIdx(i)->className());
+                    scoreboard->setReg(inst->regs.renamedDestIdx(i));
                 }
             }
 
@@ -1473,8 +1481,8 @@ DefaultIEW<Impl>::tick()
     // Free function units marked as being freed this cycle.
     fuPool->processFreeUnits();
 
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end = activeThreads->end();
+    std::list<ThreadID>::iterator threads = activeThreads->begin();
+    std::list<ThreadID>::iterator end = activeThreads->end();
 
     // Check stall and squash signals, dispatch any instructions.
     while (threads != end) {

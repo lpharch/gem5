@@ -44,7 +44,8 @@ import socket
 import threading
 import gzip
 
-from six.moves import urllib
+import urllib.error
+import urllib.request
 
 from testlib.fixture import Fixture
 from testlib.configuration import config, constants
@@ -150,7 +151,8 @@ class SConsFixture(UniqueFixture):
         command = [
             'scons', '-C', self.directory,
             '-j', str(config.threads),
-            '--ignore-style'
+            '--ignore-style',
+            '--no-compress-debug'
         ]
 
         if not self.targets:

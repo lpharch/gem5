@@ -68,8 +68,7 @@ FsFreebsd::FsFreebsd(const Params &p) : ArmISA::FsWorkload(p),
             "oops_exit", "Kernel oops in guest");
     }
 
-    skipUDelay = addKernelFuncEvent<SkipUDelay<ArmISA::SkipFunc>>(
-        "DELAY", "DELAY", 1000, 0);
+    skipUDelay = addSkipFunc<SkipUDelay>("DELAY", "DELAY", 1000, 0);
 }
 
 void
@@ -95,7 +94,7 @@ FsFreebsd::initState()
     // Kernel supports flattened device tree and dtb file specified.
     // Using Device Tree Blob to describe system configuration.
     inform("Loading DTB file: %s at address %#x\n", params().dtb_filename,
-            params().atags_addr + _loadAddrOffset);
+            params().dtb_addr);
 
     auto *dtb_file = new ::Loader::DtbFile(params().dtb_filename);
 
@@ -108,7 +107,7 @@ FsFreebsd::initState()
         bootReleaseAddr = ra & ~ULL(0x7F);
 
     dtb_file->buildImage().
-        offset(params().atags_addr + _loadAddrOffset).
+        offset(params().dtb_addr).
         write(system->physProxy);
     delete dtb_file;
 
@@ -116,7 +115,7 @@ FsFreebsd::initState()
     for (auto *tc: system->threads) {
         tc->setIntReg(0, 0);
         tc->setIntReg(1, params().machine_type);
-        tc->setIntReg(2, params().atags_addr + _loadAddrOffset);
+        tc->setIntReg(2, params().dtb_addr);
     }
 }
 

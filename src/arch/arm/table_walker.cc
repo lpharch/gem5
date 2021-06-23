@@ -648,7 +648,7 @@ TableWalker::processWalkLPAE()
                 MISCREG_TTBR0, currState->tc, !currState->isSecure));
             tsz = currState->ttbcr.t0sz;
             currState->isUncacheable = currState->ttbcr.irgn0 == 0;
-            if (ttbr0_max < (1ULL << 30))  // Upper limit < 1 GB
+            if (ttbr0_max < (1ULL << 30))  // Upper limit < 1 GiB
                 start_lookup_level = L2;
         } else if (currState->vaddr >= ttbr1_min) {
             DPRINTF(TLB, " - Selecting TTBR1 (long-desc.)\n");
@@ -673,7 +673,7 @@ TableWalker::processWalkLPAE()
                 MISCREG_TTBR1, currState->tc, !currState->isSecure));
             tsz = currState->ttbcr.t1sz;
             currState->isUncacheable = currState->ttbcr.irgn1 == 0;
-            // Lower limit >= 3 GB
+            // Lower limit >= 3 GiB
             if (ttbr1_min >= (1ULL << 31) + (1ULL << 30))
                 start_lookup_level = L2;
         } else {
@@ -2317,25 +2317,31 @@ TableWalker::pageSizeNtoStatBin(uint8_t N)
 
 TableWalker::TableWalkerStats::TableWalkerStats(Stats::Group *parent)
     : Stats::Group(parent),
-    ADD_STAT(walks, "Table walker walks requested"),
-    ADD_STAT(walksShortDescriptor, "Table walker walks initiated with"
-        " short descriptors"),
-    ADD_STAT(walksLongDescriptor, "Table walker walks initiated with"
-        " long descriptors"),
-    ADD_STAT(walksShortTerminatedAtLevel, "Level at which table walker"
-        " walks with short descriptors terminate"),
-    ADD_STAT(walksLongTerminatedAtLevel, "Level at which table walker"
-        " walks with long descriptors terminate"),
-    ADD_STAT(squashedBefore, "Table walks squashed before starting"),
-    ADD_STAT(squashedAfter, "Table walks squashed after completion"),
-    ADD_STAT(walkWaitTime, "Table walker wait (enqueue to first request)"
-        " latency"),
-    ADD_STAT(walkServiceTime, "Table walker service (enqueue to completion)"
-        " latency"),
-    ADD_STAT(pendingWalks, "Table walker pending requests distribution"),
-    ADD_STAT(pageSizes, "Table walker page sizes translated"),
-    ADD_STAT(requestOrigin, "Table walker requests started/completed,"
-        " data/inst")
+    ADD_STAT(walks, UNIT_COUNT, "Table walker walks requested"),
+    ADD_STAT(walksShortDescriptor, UNIT_COUNT,
+             "Table walker walks initiated with short descriptors"),
+    ADD_STAT(walksLongDescriptor, UNIT_COUNT,
+             "Table walker walks initiated with long descriptors"),
+    ADD_STAT(walksShortTerminatedAtLevel, UNIT_COUNT,
+             "Level at which table walker walks with short descriptors "
+             "terminate"),
+    ADD_STAT(walksLongTerminatedAtLevel, UNIT_COUNT,
+             "Level at which table walker walks with long descriptors "
+             "terminate"),
+    ADD_STAT(squashedBefore, UNIT_COUNT,
+             "Table walks squashed before starting"),
+    ADD_STAT(squashedAfter, UNIT_COUNT,
+             "Table walks squashed after completion"),
+    ADD_STAT(walkWaitTime, UNIT_TICK,
+             "Table walker wait (enqueue to first request) latency"),
+    ADD_STAT(walkServiceTime, UNIT_TICK,
+             "Table walker service (enqueue to completion) latency"),
+    ADD_STAT(pendingWalks, UNIT_TICK,
+             "Table walker pending requests distribution"),
+    ADD_STAT(pageSizes, UNIT_COUNT,
+             "Table walker page sizes translated"),
+    ADD_STAT(requestOrigin, UNIT_COUNT,
+             "Table walker requests started/completed, data/inst")
 {
     walksShortDescriptor
         .flags(Stats::nozero);
@@ -2379,16 +2385,16 @@ TableWalker::TableWalkerStats::TableWalkerStats(Stats::Group *parent)
     pageSizes // see DDI 0487A D4-1661
         .init(10)
         .flags(Stats::total | Stats::pdf | Stats::dist | Stats::nozero);
-    pageSizes.subname(0, "4K");
-    pageSizes.subname(1, "16K");
-    pageSizes.subname(2, "64K");
-    pageSizes.subname(3, "1M");
-    pageSizes.subname(4, "2M");
-    pageSizes.subname(5, "16M");
-    pageSizes.subname(6, "32M");
-    pageSizes.subname(7, "512M");
-    pageSizes.subname(8, "1G");
-    pageSizes.subname(9, "4TB");
+    pageSizes.subname(0, "4KiB");
+    pageSizes.subname(1, "16KiB");
+    pageSizes.subname(2, "64KiB");
+    pageSizes.subname(3, "1MiB");
+    pageSizes.subname(4, "2MiB");
+    pageSizes.subname(5, "16MiB");
+    pageSizes.subname(6, "32MiB");
+    pageSizes.subname(7, "512MiB");
+    pageSizes.subname(8, "1GiB");
+    pageSizes.subname(9, "4TiB");
 
     requestOrigin
         .init(2,2) // Instruction/Data, requests/completed

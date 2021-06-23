@@ -167,18 +167,14 @@ Gem5ToTlmBridge<BITWIDTH>::pec(
 
         bool need_retry = false;
 
-        /*
-         * If the packet was piped through and needs a response, we don't need
-         * to touch the packet and can forward it directly as a response.
-         * Otherwise, we need to make a response and send the transformed
-         * packet.
-         */
-        if (extension.isPipeThrough()) {
-            if (packet->isResponse()) {
-                need_retry = !bridgeResponsePort.sendTimingResp(packet);
-            }
-        } else if (packet->needsResponse()) {
+        // If there is another gem5 model under the receiver side, and already
+        // make a response packet back, we can simply send it back. Otherwise,
+        // we make a response packet before sending it back to the initiator
+        // side gem5 module.
+        if (packet->needsResponse()) {
             packet->makeResponse();
+        }
+        if (packet->isResponse()) {
             need_retry = !bridgeResponsePort.sendTimingResp(packet);
         }
 
@@ -368,6 +364,8 @@ Gem5ToTlmBridge<BITWIDTH>::recvTimingReq(PacketPtr packet)
     } else if (status == tlm::TLM_UPDATED) {
         // The Timing annotation must be honored:
         sc_assert(phase == tlm::END_REQ || phase == tlm::BEGIN_RESP);
+        // Accepted but is now blocking until END_REQ (exclusion rule).
+        blockingRequest = trans;
         auto cb = [this, trans, phase]() { pec(*trans, phase); };
         system->schedule(new EventFunctionWrapper(cb, "pec", true),
                          curTick() + delay.value());

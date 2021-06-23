@@ -1,4 +1,4 @@
-# Copyright (c) 2020 ARM Limited
+# Copyright (c) 2020-2021 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -259,23 +259,7 @@ $klass ${{self.c_ident}}$parent
         code('}')
 
         # ******** Copy constructor ********
-        if not self.isGlobal:
-            code('${{self.c_ident}}(const ${{self.c_ident}}&other)')
-
-            # Call superclass constructor
-            if "interface" in self:
-                code('    : ${{self["interface"]}}(other)')
-
-            code('{')
-            code.indent()
-
-            for dm in self.data_members.values():
-                code('m_${{dm.ident}} = other.m_${{dm.ident}};')
-
-            code.dedent()
-            code('}')
-        else:
-            code('${{self.c_ident}}(const ${{self.c_ident}}&) = default;')
+        code('${{self.c_ident}}(const ${{self.c_ident}}&) = default;')
 
         # ******** Assignment operator ********
 
@@ -430,14 +414,12 @@ operator<<(std::ostream& out, const ${{self.c_ident}}& obj)
 
 #include "mem/ruby/protocol/${{self.c_ident}}.hh"
 #include "mem/ruby/system/RubySystem.hh"
-
-using namespace std;
 ''')
 
         code('''
 /** \\brief Print the state of this object */
 void
-${{self.c_ident}}::print(ostream& out) const
+${{self.c_ident}}::print(std::ostream& out) const
 {
     out << "[${{self.c_ident}}: ";
 ''')
@@ -584,8 +566,6 @@ std::ostream& operator<<(std::ostream& out, const ${{self.c_ident}}& obj);
 #include "base/logging.hh"
 #include "mem/ruby/protocol/${{self.c_ident}}.hh"
 
-using namespace std;
-
 ''')
 
         if self.isStateDecl:
@@ -618,16 +598,16 @@ AccessPermission ${{self.c_ident}}_to_permission(const ${{self.c_ident}}& obj)
 
         code('''
 // Code for output operator
-ostream&
-operator<<(ostream& out, const ${{self.c_ident}}& obj)
+std::ostream&
+operator<<(std::ostream& out, const ${{self.c_ident}}& obj)
 {
     out << ${{self.c_ident}}_to_string(obj);
-    out << flush;
+    out << std::flush;
     return out;
 }
 
 // Code to convert state to a string
-string
+std::string
 ${{self.c_ident}}_to_string(const ${{self.c_ident}}& obj)
 {
     switch(obj) {
@@ -649,7 +629,7 @@ ${{self.c_ident}}_to_string(const ${{self.c_ident}}& obj)
 
 // Code to convert from a string to the enumeration
 ${{self.c_ident}}
-string_to_${{self.c_ident}}(const string& str)
+string_to_${{self.c_ident}}(const std::string& str)
 {
 ''')
 

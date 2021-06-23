@@ -52,8 +52,6 @@ class ISA : public BaseISA
     RegVal miscRegs[NumMiscRegs];
 
   public:
-    typedef PowerISAParams Params;
-
     void clear() {}
 
   public:
@@ -128,7 +126,13 @@ class ISA : public BaseISA
         return reg;
     }
 
-    const Params &params() const;
+    bool
+    inUserMode() const override
+    {
+        return false;
+    }
+
+    using Params = PowerISAParams;
 
     ISA(const Params &p);
 };

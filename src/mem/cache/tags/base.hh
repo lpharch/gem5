@@ -111,7 +111,7 @@ class BaseTags : public ClockedObject
 
         BaseTags &tags;
 
-        /** Per cycle average of the number of tags that hold valid data. */
+        /** Per tick average of the number of tags that hold valid data. */
         Stats::Average tagsInUse;
 
         /** The total number of references to a block before it is replaced. */
@@ -130,8 +130,8 @@ class BaseTags : public ClockedObject
          */
         Stats::Formula avgRefs;
 
-        /** The cycle that the warmup percentage was hit. 0 on failure. */
-        Stats::Scalar warmupCycle;
+        /** The tick that the warmup percentage was hit. 0 on failure. */
+        Stats::Scalar warmupTick;
 
         /** Average occupancy of each requestor using the cache */
         Stats::AverageVector occupancies;
@@ -145,8 +145,8 @@ class BaseTags : public ClockedObject
         /** Occupancy of each context/cpu using the cache */
         Stats::Vector2d ageTaskId;
 
-        /** Occ % of each context/cpu using the cache */
-        Stats::Formula percentOccsTaskId;
+        /** Occ ratio of each context/cpu using the cache */
+        Stats::Formula ratioOccsTaskId;
 
         /** Number of tags consulted over all accesses. */
         Stats::Scalar tagAccesses;

@@ -38,9 +38,6 @@ Research Starter Kit on System Modeling. More information can be found
 at: http://www.arm.com/ResearchEnablement/SystemModeling
 """
 
-from __future__ import print_function
-from __future__ import absolute_import
-
 import os
 import m5
 from m5.util import addToPath
@@ -100,7 +97,7 @@ class SimpleSeSystem(System):
 
         # Wire up the system port that gem5 uses to load the kernel
         # and to perform debug accesses.
-        self.system_port = self.membus.slave
+        self.system_port = self.membus.cpu_side_ports
 
 
         # Add CPUs to the system. A cluster of CPUs typically have

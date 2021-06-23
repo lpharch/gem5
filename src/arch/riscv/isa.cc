@@ -182,12 +182,6 @@ ISA::ISA(const Params &p) : BaseISA(p)
     clear();
 }
 
-const RiscvISAParams &
-ISA::params() const
-{
-    return dynamic_cast<const Params &>(_params);
-}
-
 void ISA::clear()
 {
     std::fill(miscRegFile.begin(), miscRegFile.end(), 0);
@@ -261,7 +255,7 @@ ISA::readMiscReg(int misc_reg)
         if (hpmCounterEnabled(MISCREG_TIME)) {
             DPRINTF(RiscvMisc, "Wall-clock counter at: %llu.\n",
                     std::time(nullptr));
-            return std::time(nullptr);
+            return readMiscRegNoEffect(MISCREG_TIME);
         } else {
             warn("Wall clock disabled.\n");
             return 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012-2020 ARM Limited
+ * Copyright (c) 2010, 2012-2021 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -48,6 +48,7 @@
 #include "arch/arm/system.hh"
 #include "arch/arm/tlb.hh"
 #include "arch/arm/types.hh"
+#include "arch/arm/utility.hh"
 #include "arch/generic/isa.hh"
 #include "arch/generic/traits.hh"
 #include "debug/Checkpoint.hh"
@@ -94,6 +95,7 @@ namespace ArmISA
         uint8_t physAddrRange;
         bool haveSVE;
         bool haveLSE;
+        bool haveVHE;
         bool havePAN;
         bool haveSecEL2;
         bool haveTME;
@@ -881,11 +883,22 @@ namespace ArmISA
             return _vecRegRenameMode;
         }
 
-        typedef ArmISAParams Params;
-
-        const Params &params() const;
+        PARAMS(ArmISA);
 
         ISA(const Params &p);
+
+        uint64_t
+        getExecutingAsid() const override
+        {
+            return readMiscRegNoEffect(MISCREG_CONTEXTIDR);
+        }
+
+        bool
+        inUserMode() const override
+        {
+            CPSR cpsr = miscRegs[MISCREG_CPSR];
+            return ArmISA::inUserMode(cpsr);
+        }
     };
 }
 

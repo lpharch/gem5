@@ -1,4 +1,4 @@
-# Copyright (c) 2020 ARM Limited
+# Copyright (c) 2020-2021 ARM Limited
 # All rights reserved
 #
 # The license below extends only to copyright in the software and shall
@@ -83,7 +83,6 @@ import copy
 import os
 import re
 
-from six import add_metaclass
 from pickle import HIGHEST_PROTOCOL as highest_pickle_protocol
 
 from testlib.helper import absdirpath, AttrDict, FrozenAttrDict
@@ -494,10 +493,11 @@ def define_common_args(config):
     # A list of common arguments/flags used across cli parsers.
     common_args = [
         Argument(
-            'directory',
-            nargs='?',
-            default=os.getcwd(),
-            help='Directory to start searching for tests in'),
+            'directories',
+            nargs='*',
+            default=[os.getcwd()],
+            help='Space separated list of directories to start searching '
+                 'for tests in'),
         Argument(
             '--exclude-tags',
             action=StorePositionalTagsAction,
@@ -602,8 +602,7 @@ def define_common_args(config):
     # one in the list will be saved.
     common_args = AttrDict({arg.name:arg for arg in common_args})
 
-@add_metaclass(abc.ABCMeta)
-class ArgParser(object):
+class ArgParser(object, metaclass=abc.ABCMeta):
     class ExtendAction(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
             items = getattr(namespace, self.dest, [])
@@ -648,7 +647,7 @@ class RunParser(ArgParser):
 
         common_args.uid.add_to(parser)
         common_args.skip_build.add_to(parser)
-        common_args.directory.add_to(parser)
+        common_args.directories.add_to(parser)
         common_args.build_dir.add_to(parser)
         common_args.base_dir.add_to(parser)
         common_args.bin_path.add_to(parser)
@@ -705,7 +704,7 @@ class ListParser(ArgParser):
             help='Quiet output (machine readable).'
         ).add_to(parser)
 
-        common_args.directory.add_to(parser)
+        common_args.directories.add_to(parser)
         common_args.bin_path.add_to(parser)
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
@@ -724,7 +723,7 @@ class RerunParser(ArgParser):
         super(RerunParser, self).__init__(parser)
 
         common_args.skip_build.add_to(parser)
-        common_args.directory.add_to(parser)
+        common_args.directories.add_to(parser)
         common_args.build_dir.add_to(parser)
         common_args.base_dir.add_to(parser)
         common_args.bin_path.add_to(parser)

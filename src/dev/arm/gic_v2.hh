@@ -475,12 +475,7 @@ class GicV2 : public BaseGic, public BaseGicRegisters
     int pendingDelayedInterrupts;
 
   public:
-    typedef GicV2Params Params;
-    const Params &
-    params() const
-    {
-        return dynamic_cast<const Params &>(_params);
-    }
+    using Params = GicV2Params;
     GicV2(const Params &p);
     ~GicV2();
 

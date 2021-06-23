@@ -39,19 +39,14 @@ namespace MipsISA
 
 class EmuLinux : public SEWorkload
 {
-  public:
-    using Params = MipsEmuLinuxParams;
-
   protected:
-    const Params &_params;
-
     /// Syscall descriptors, indexed by call number.
     static SyscallDescTable<SyscallABI> syscallDescs;
 
   public:
-    const Params &params() const { return _params; }
+    using Params = MipsEmuLinuxParams;
 
-    EmuLinux(const Params &p) : SEWorkload(p), _params(p) {}
+    EmuLinux(const Params &p) : SEWorkload(p) {}
 
     void syscall(ThreadContext *tc) override;
 };

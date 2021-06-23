@@ -43,7 +43,6 @@
 #include "sim/eventq.hh"
 #include "sim/stats.hh"
 
-using namespace std;
 using namespace Net;
 
 namespace Sinic {
@@ -99,11 +98,14 @@ Device::~Device()
 
 Device::DeviceStats::DeviceStats(Stats::Group *parent)
     : Stats::Group(parent, "SinicDevice"),
-      ADD_STAT(totalVnicDistance, "Total vnic distance"),
-      ADD_STAT(numVnicDistance, "Number of vnic distance measurements"),
-      ADD_STAT(maxVnicDistance, "Maximum vnic distance"),
-      ADD_STAT(avgVnicDistance, "Average vnic distance",
-               totalVnicDistance / numVnicDistance),
+      ADD_STAT(totalVnicDistance, UNIT_COUNT,
+               "Total vnic distance"),
+      ADD_STAT(numVnicDistance, UNIT_COUNT,
+               "Number of vnic distance measurements"),
+      ADD_STAT(maxVnicDistance, UNIT_COUNT, "Maximum vnic distance"),
+      ADD_STAT(avgVnicDistance,
+               UNIT_RATE(Stats::Units::Count, Stats::Units::Count),
+               "Average vnic distance", totalVnicDistance / numVnicDistance),
       _maxVnicDistance(0)
 {
 }
@@ -835,8 +837,8 @@ Device::rxKick()
             goto exit;
 
         rxDmaAddr = pciToDma(Regs::get_RxData_Addr(vnic->RxData));
-        rxDmaLen = min<unsigned>(Regs::get_RxData_Len(vnic->RxData),
-                                 vnic->rxPacketBytes);
+        rxDmaLen = std::min<unsigned>(Regs::get_RxData_Len(vnic->RxData),
+                                      vnic->rxPacketBytes);
 
         /*
          * if we're doing zero/delay copy and we're below the fifo
@@ -1016,7 +1018,7 @@ Device::txKick()
         assert(Regs::get_TxDone_Busy(vnic->TxDone));
         if (!txPacket) {
             // Grab a new packet from the fifo.
-            txPacket = make_shared<EthPacketData>(16384);
+            txPacket = std::make_shared<EthPacketData>(16384);
             txPacketOffset = 0;
         }
 
@@ -1425,7 +1427,7 @@ Device::unserialize(CheckpointIn &cp)
     UNSERIALIZE_SCALAR(txPacketExists);
     txPacket = 0;
     if (txPacketExists) {
-        txPacket = make_shared<EthPacketData>(16384);
+        txPacket = std::make_shared<EthPacketData>(16384);
         txPacket->unserialize("txPacket", cp);
         UNSERIALIZE_SCALAR(txPacketOffset);
         UNSERIALIZE_SCALAR(txPacketBytes);

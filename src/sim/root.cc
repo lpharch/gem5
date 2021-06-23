@@ -49,20 +49,23 @@
 #include "sim/root.hh"
 
 Root *Root::_root = NULL;
-Root::Stats Root::Stats::instance;
-Root::Stats &rootStats = Root::Stats::instance;
+Root::RootStats Root::RootStats::instance;
+Root::RootStats &rootStats = Root::RootStats::instance;
 
-Root::Stats::Stats()
+Root::RootStats::RootStats()
     : Stats::Group(nullptr),
-    simSeconds(this, "sim_seconds", "Number of seconds simulated"),
-    simTicks(this, "sim_ticks", "Number of ticks simulated"),
-    finalTick(this, "final_tick",
-              "Number of ticks from beginning of simulation "
-              "(restored from checkpoints and never reset)"),
-    simFreq(this, "sim_freq", "Frequency of simulated ticks"),
-    hostSeconds(this, "host_seconds", "Real time elapsed on the host"),
-    hostTickRate(this, "host_tick_rate", "Simulator tick rate (ticks/s)"),
-    hostMemory(this, "host_mem_usage", "Number of bytes of host memory used"),
+    ADD_STAT(simSeconds, UNIT_SECOND, "Number of seconds simulated"),
+    ADD_STAT(simTicks, UNIT_TICK, "Number of ticks simulated"),
+    ADD_STAT(finalTick, UNIT_TICK,
+             "Number of ticks from beginning of simulation "
+             "(restored from checkpoints and never reset)"),
+    ADD_STAT(simFreq, UNIT_RATE(Stats::Units::Tick, Stats::Units::Second),
+             "The number of ticks per simulated second"),
+    ADD_STAT(hostSeconds, UNIT_SECOND, "Real time elapsed on the host"),
+    ADD_STAT(hostTickRate,
+             UNIT_RATE(Stats::Units::Tick, Stats::Units::Second),
+             "The number of ticks simulated per host second (ticks/s)"),
+    ADD_STAT(hostMemory, UNIT_BYTE, "Number of bytes of host memory used"),
 
     statTime(true),
     startTick(0)
@@ -92,7 +95,7 @@ Root::Stats::Stats()
 }
 
 void
-Root::Stats::resetStats()
+Root::RootStats::resetStats()
 {
     statTime.setTimer();
     startTick = curTick();
@@ -163,7 +166,7 @@ Root::timeSyncSpinThreshold(Time newThreshold)
     timeSyncEnable(en);
 }
 
-Root::Root(const RootParams &p)
+Root::Root(const RootParams &p, int)
     : SimObject(p), _enabled(false), _periodTick(p.time_sync_period),
       syncEvent([this]{ timeSync(); }, name())
 {
@@ -180,7 +183,7 @@ Root::Root(const RootParams &p)
     // stat formulas. The most convenient way to implement that is by
     // having a single global stat group for global stats. Merge that
     // group into the root object here.
-    mergeStatGroup(&Root::Stats::instance);
+    mergeStatGroup(&Root::RootStats::instance);
 }
 
 void
@@ -213,5 +216,5 @@ RootParams::create() const
     FullSystem = full_system;
     FullSystemInt = full_system ? 1 : 0;
 
-    return new Root(*this);
+    return new Root(*this, 0);
 }

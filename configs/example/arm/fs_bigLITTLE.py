@@ -36,10 +36,6 @@
 # This is an example configuration script for full system simulation of
 # a generic ARM bigLITTLE system.
 
-
-from __future__ import print_function
-from __future__ import absolute_import
-
 import argparse
 import os
 import sys
@@ -123,7 +119,7 @@ def createSystem(caches, kernel, bootscript, machine_type="VExpress_GEM5",
                                    object_file=SysPaths.binary(kernel)),
                                readfile=bootscript)
 
-    sys.mem_ctrls = [ SimpleMemory(range=r, port=sys.membus.master)
+    sys.mem_ctrls = [ SimpleMemory(range=r, port=sys.membus.mem_side_ports)
                       for r in sys.mem_ranges ]
 
     sys.connect()

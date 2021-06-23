@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020 Inria
- * Copyright (c) 2019 ARM Limited
+ * Copyright (c) 2019,2021 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -48,7 +48,6 @@
 #include "mem/ruby/network/MessageBuffer.hh"
 #include "mem/ruby/network/simple/SimpleNetwork.hh"
 
-using namespace std;
 using m5::stl_helpers::operator<<;
 
 Switch::Switch(const Params &p)
@@ -70,13 +69,13 @@ Switch::init()
 }
 
 void
-Switch::addInPort(const vector<MessageBuffer*>& in)
+Switch::addInPort(const std::vector<MessageBuffer*>& in)
 {
     perfectSwitch.addInPort(in);
 }
 
 void
-Switch::addOutPort(const vector<MessageBuffer*>& out,
+Switch::addOutPort(const std::vector<MessageBuffer*>& out,
                    const NetDest& routing_table_entry,
                    Cycles link_latency, int bw_multiplier)
 {
@@ -86,7 +85,7 @@ Switch::addOutPort(const vector<MessageBuffer*>& out,
         m_network_ptr->getEndpointBandwidth(), this);
 
     // Create one buffer per vnet (these are intermediaryQueues)
-    vector<MessageBuffer*> intermediateBuffers;
+    std::vector<MessageBuffer*> intermediateBuffers;
 
     for (int i = 0; i < out.size(); ++i) {
         assert(m_num_connected_buffers < m_port_buffers.size());
@@ -175,6 +174,17 @@ Switch::functionalRead(Packet *pkt)
             return true;
     }
     return false;
+}
+
+bool
+Switch::functionalRead(Packet *pkt, WriteMask &mask)
+{
+    bool read = false;
+    for (unsigned int i = 0; i < m_port_buffers.size(); ++i) {
+        if (m_port_buffers[i]->functionalRead(pkt, mask))
+            read = true;
+    }
+    return read;
 }
 
 uint32_t

@@ -42,13 +42,7 @@ class EmuLinux : public SEWorkload
   public:
     using Params = ArmEmuLinuxParams;
 
-  protected:
-    const Params &_params;
-
-  public:
-    const Params &params() const { return _params; }
-
-    EmuLinux(const Params &p) : SEWorkload(p), _params(p) {}
+    EmuLinux(const Params &p) : SEWorkload(p) {}
 
     struct BaseSyscallABI {};
     struct SyscallABI32 : public SEWorkload::SyscallABI32,

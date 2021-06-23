@@ -53,9 +53,6 @@
 #include "debug/FmtTicksOff.hh"
 #include "enums/OpClass.hh"
 
-using namespace std;
-using namespace TheISA;
-
 namespace Trace {
 
 void
@@ -63,14 +60,16 @@ Trace::ExeTracerRecord::traceInst(const StaticInstPtr &inst, bool ran)
 {
     std::stringstream outs;
 
-    if (!Debug::ExecUser || !Debug::ExecKernel) {
-        bool in_user_mode = TheISA::inUserMode(thread);
-        if (in_user_mode && !Debug::ExecUser) return;
-        if (!in_user_mode && !Debug::ExecKernel) return;
-    }
+    const bool in_user_mode = thread->getIsaPtr()->inUserMode();
+    if (in_user_mode && !Debug::ExecUser)
+        return;
+    if (!in_user_mode && !Debug::ExecKernel)
+        return;
 
-    if (Debug::ExecAsid)
-        outs << "A" << dec << TheISA::getExecutingAsid(thread) << " ";
+    if (Debug::ExecAsid) {
+        outs << "A" << std::dec <<
+            thread->getIsaPtr()->getExecutingAsid() << " ";
+    }
 
     if (Debug::ExecThread)
         outs << "T" << thread->threadId() << " : ";
@@ -78,7 +77,7 @@ Trace::ExeTracerRecord::traceInst(const StaticInstPtr &inst, bool ran)
     Addr cur_pc = pc.instAddr();
     Loader::SymbolTable::const_iterator it;
     ccprintf(outs, "%#x", cur_pc);
-    if (Debug::ExecSymbol && (!FullSystem || !inUserMode(thread)) &&
+    if (Debug::ExecSymbol && (!FullSystem || !in_user_mode) &&
             (it = Loader::debugSymbolTable.findNearest(cur_pc)) !=
                 Loader::debugSymbolTable.end()) {
         Addr delta = cur_pc - it->address;
@@ -100,7 +99,7 @@ Trace::ExeTracerRecord::traceInst(const StaticInstPtr &inst, bool ran)
     //  Print decoded instruction
     //
 
-    outs << setw(26) << left;
+    outs << std::setw(26) << std::left;
     outs << inst->disassemble(cur_pc, &Loader::debugSymbolTable);
 
     if (ran) {
@@ -150,13 +149,13 @@ Trace::ExeTracerRecord::traceInst(const StaticInstPtr &inst, bool ran)
         }
 
         if (Debug::ExecEffAddr && getMemValid())
-            outs << " A=0x" << hex << addr;
+            outs << " A=0x" << std::hex << addr;
 
         if (Debug::ExecFetchSeq && fetch_seq_valid)
-            outs << "  FetchSeq=" << dec << fetch_seq;
+            outs << "  FetchSeq=" << std::dec << fetch_seq;
 
         if (Debug::ExecCPSeq && cp_seq_valid)
-            outs << "  CPSeq=" << dec << cp_seq;
+            outs << "  CPSeq=" << std::dec << cp_seq;
 
         if (Debug::ExecFlags) {
             outs << "  flags=(";
@@ -168,7 +167,7 @@ Trace::ExeTracerRecord::traceInst(const StaticInstPtr &inst, bool ran)
     //
     //  End of line...
     //
-    outs << endl;
+    outs << std::endl;
 
     Trace::getDebugLogger()->dprintf_flag(
         when, thread->getCpuPtr()->name(), "ExecEnable", "%s",

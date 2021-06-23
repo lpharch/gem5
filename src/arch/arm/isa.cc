@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2020 ARM Limited
+ * Copyright (c) 2010-2021 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -88,6 +88,7 @@ ISA::ISA(const Params &p) : BaseISA(p), system(NULL),
         haveLargeAsid64 = system->haveLargeAsid64();
         physAddrRange = system->physAddrRange();
         haveSVE = system->haveSVE();
+        haveVHE = system->haveVHE();
         havePAN = system->havePAN();
         haveSecEL2 = system->haveSecEL2();
         sveVL = system->sveVL();
@@ -100,6 +101,7 @@ ISA::ISA(const Params &p) : BaseISA(p), system(NULL),
         haveLargeAsid64 = false;
         physAddrRange = 32;  // dummy value
         haveSVE = true;
+        haveVHE = false;
         havePAN = false;
         haveSecEL2 = true;
         sveVL = p.sve_vl_se;
@@ -119,12 +121,6 @@ ISA::ISA(const Params &p) : BaseISA(p), system(NULL),
 }
 
 std::vector<struct ISA::MiscRegLUTEntry> ISA::lookUpMiscReg(NUM_MISCREGS);
-
-const ArmISAParams &
-ISA::params() const
-{
-    return dynamic_cast<const Params &>(_params);
-}
 
 void
 ISA::clear()
@@ -426,6 +422,10 @@ ISA::initID64(const ArmISAParams &p)
     miscRegs[MISCREG_ID_AA64ISAR0_EL1] = insertBits(
         miscRegs[MISCREG_ID_AA64ISAR0_EL1], 23, 20,
         haveLSE ? 0x2 : 0x0);
+    // VHE
+    miscRegs[MISCREG_ID_AA64MMFR1_EL1] = insertBits(
+        miscRegs[MISCREG_ID_AA64MMFR1_EL1], 11, 8,
+        haveVHE ? 0x1 : 0x0);
     // PAN
     miscRegs[MISCREG_ID_AA64MMFR1_EL1] = insertBits(
         miscRegs[MISCREG_ID_AA64MMFR1_EL1], 23, 20,
@@ -930,6 +930,7 @@ ISA::setMiscReg(int misc_reg, RegVal val)
             break;
           case MISCREG_CPTR_EL2:
             {
+                const HCR hcr = readMiscRegNoEffect(MISCREG_HCR_EL2);
                 const uint32_t ones = (uint32_t)(-1);
                 CPTR cptrMask = 0;
                 cptrMask.tcpac = ones;
@@ -937,7 +938,9 @@ ISA::setMiscReg(int misc_reg, RegVal val)
                 cptrMask.tfp = ones;
                 if (haveSVE) {
                     cptrMask.tz = ones;
+                    cptrMask.zen = hcr.e2h ? ones : 0;
                 }
+                cptrMask.fpen = hcr.e2h ? ones : 0;
                 newVal &= cptrMask;
                 cptrMask = 0;
                 cptrMask.res1_13_12_el2 = ones;

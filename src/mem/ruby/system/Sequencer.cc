@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 ARM Limited
+ * Copyright (c) 2019-2021 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -58,8 +58,6 @@
 #include "mem/ruby/slicc_interface/RubySlicc_Util.hh"
 #include "mem/ruby/system/RubySystem.hh"
 #include "sim/system.hh"
-
-using namespace std;
 
 Sequencer::Sequencer(const Params &p)
     : RubyPort(p), m_IncompleteTimes(MachineType_NUM),
@@ -336,7 +334,7 @@ Sequencer::recordMissLatency(SequencerRequest* srequest, bool llscSuccess,
     assert(curCycle() >= issued_time);
     Cycles total_lat = completion_time - issued_time;
 
-    if (initialRequestTime < issued_time) {
+    if ((initialRequestTime != 0) && (initialRequestTime < issued_time)) {
         // if the request was combined in the protocol with an earlier request
         // for the same address, it is possible that it will return an
         // initialRequestTime corresponding the earlier request.  Since Cycles
@@ -475,19 +473,18 @@ Sequencer::writeCallback(Addr address, DataBlock& data,
                 aliased_stores++;
             }
             markRemoved();
-            ruby_request = false;
             hitCallback(&seq_req, data, success, mach, externalHit,
                         initialRequestTime, forwardRequestTime,
-                        firstResponseTime);
+                        firstResponseTime, !ruby_request);
+            ruby_request = false;
         } else {
             // handle read request
             assert(!ruby_request);
             markRemoved();
-            ruby_request = false;
             aliased_loads++;
             hitCallback(&seq_req, data, true, mach, externalHit,
                         initialRequestTime, forwardRequestTime,
-                        firstResponseTime);
+                        firstResponseTime, !ruby_request);
         }
         seq_req_list.pop_front();
     }
@@ -540,10 +537,10 @@ Sequencer::readCallback(Addr address, DataBlock& data,
                               firstResponseTime);
         }
         markRemoved();
-        ruby_request = false;
         hitCallback(&seq_req, data, true, mach, externalHit,
                     initialRequestTime, forwardRequestTime,
-                    firstResponseTime);
+                    firstResponseTime, !ruby_request);
+        ruby_request = false;
         seq_req_list.pop_front();
     }
 
@@ -559,7 +556,8 @@ Sequencer::hitCallback(SequencerRequest* srequest, DataBlock& data,
                        const MachineType mach, const bool externalHit,
                        const Cycles initialRequestTime,
                        const Cycles forwardRequestTime,
-                       const Cycles firstResponseTime)
+                       const Cycles firstResponseTime,
+                       const bool was_coalesced)
 {
     warn_once("Replacement policy updates recently became the responsibility "
               "of SLICC state machines. Make sure to setMRU() near callbacks "
@@ -569,6 +567,14 @@ Sequencer::hitCallback(SequencerRequest* srequest, DataBlock& data,
     Addr request_address(pkt->getAddr());
     RubyRequestType type = srequest->m_type;
 
+    if (was_coalesced) {
+        // Notify the controller about a coalesced request so it can properly
+        // account for it in its hit/miss stats and/or train prefetchers
+        // (this is protocol-dependent)
+        m_controller->notifyCoalesced(request_address, type, pkt->req,
+                                      data, externalHit);
+    }
+
     // Load-linked handling
     if (type == RubyRequestType_Load_Linked) {
         Addr line_addr = makeLineAddress(request_address);
@@ -577,8 +583,7 @@ Sequencer::hitCallback(SequencerRequest* srequest, DataBlock& data,
 
     // update the data unless it is a non-data-carrying flush
     if (RubySystem::getWarmupEnabled()) {
-        data.setData(pkt->getConstPtr<uint8_t>(),
-                     getOffset(request_address), pkt->getSize());
+        data.setData(pkt);
     } else if (!pkt->isFlush()) {
         if ((type == RubyRequestType_LD) ||
             (type == RubyRequestType_IFETCH) ||
@@ -589,6 +594,7 @@ Sequencer::hitCallback(SequencerRequest* srequest, DataBlock& data,
                 data.getData(getOffset(request_address), pkt->getSize()));
             DPRINTF(RubySequencer, "read data %s\n", data);
         } else if (pkt->req->isSwap()) {
+            assert(!pkt->isMaskedWrite());
             std::vector<uint8_t> overwrite_val(pkt->getSize());
             pkt->writeData(&overwrite_val[0]);
             pkt->setData(
@@ -599,8 +605,7 @@ Sequencer::hitCallback(SequencerRequest* srequest, DataBlock& data,
         } else if (type != RubyRequestType_Store_Conditional || llscSuccess) {
             // Types of stores set the actual data here, apart from
             // failed Store Conditional requests
-            data.setData(pkt->getConstPtr<uint8_t>(),
-                         getOffset(request_address), pkt->getSize());
+            data.setData(pkt);
             DPRINTF(RubySequencer, "set data %s\n", data);
         }
     }
@@ -772,8 +777,6 @@ Sequencer::issueRequest(PacketPtr pkt, RubyRequestType secondary_type)
     // requests do not
     std::shared_ptr<RubyRequest> msg =
         std::make_shared<RubyRequest>(clockEdge(), pkt->getAddr(),
-                                      pkt->isFlush() ?
-                                      nullptr : pkt->getPtr<uint8_t>(),
                                       pkt->getSize(), pc, secondary_type,
                                       RubyAccessMode_Supervisor, pkt,
                                       PrefetchBit_No, proc_id, core_id);
@@ -801,7 +804,7 @@ Sequencer::issueRequest(PacketPtr pkt, RubyRequestType secondary_type)
 
 template <class KEY, class VALUE>
 std::ostream &
-operator<<(ostream &out, const std::unordered_map<KEY, VALUE> &map)
+operator<<(std::ostream &out, const std::unordered_map<KEY, VALUE> &map)
 {
     for (const auto &table_entry : map) {
         out << "[ " << table_entry.first << " =";
@@ -815,7 +818,7 @@ operator<<(ostream &out, const std::unordered_map<KEY, VALUE> &map)
 }
 
 void
-Sequencer::print(ostream& out) const
+Sequencer::print(std::ostream& out) const
 {
     out << "[Sequencer: " << m_version
         << ", outstanding requests: " << m_outstanding_count

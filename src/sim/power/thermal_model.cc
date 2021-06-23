@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 ARM Limited
+ * Copyright (c) 2015, 2021 Arm Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -39,6 +39,7 @@
 
 #include "base/statistics.hh"
 #include "params/ThermalCapacitor.hh"
+#include "params/ThermalModel.hh"
 #include "params/ThermalReference.hh"
 #include "params/ThermalResistor.hh"
 #include "sim/clocked_object.hh"
@@ -52,18 +53,6 @@
 ThermalReference::ThermalReference(const Params &p)
     : SimObject(p), _temperature(p.temperature), node(NULL)
 {
-}
-
-void
-ThermalReference::serialize(CheckpointOut &cp) const
-{
-    SERIALIZE_SCALAR(_temperature);
-}
-
-void
-ThermalReference::unserialize(CheckpointIn &cp)
-{
-    UNSERIALIZE_SCALAR(_temperature);
 }
 
 LinearEquation
@@ -81,18 +70,6 @@ ThermalResistor::ThermalResistor(const Params &p)
 {
 }
 
-void
-ThermalResistor::serialize(CheckpointOut &cp) const
-{
-    SERIALIZE_SCALAR(_resistance);
-}
-
-void
-ThermalResistor::unserialize(CheckpointIn &cp)
-{
-    UNSERIALIZE_SCALAR(_resistance);
-}
-
 LinearEquation
 ThermalResistor::getEquation(ThermalNode * n, unsigned nnodes,
                              double step) const
@@ -104,12 +81,12 @@ ThermalResistor::getEquation(ThermalNode * n, unsigned nnodes,
         return eq;
 
     if (node1->isref)
-        eq[eq.cnt()] += -node1->temp / _resistance;
+        eq[eq.cnt()] += -node1->temp.toKelvin() / _resistance;
     else
         eq[node1->id] += -1.0f / _resistance;
 
     if (node2->isref)
-        eq[eq.cnt()] += node2->temp / _resistance;
+        eq[eq.cnt()] += node2->temp.toKelvin() / _resistance;
     else
         eq[node2->id] += 1.0f / _resistance;
 
@@ -128,18 +105,6 @@ ThermalCapacitor::ThermalCapacitor(const Params &p)
 {
 }
 
-void
-ThermalCapacitor::serialize(CheckpointOut &cp) const
-{
-    SERIALIZE_SCALAR(_capacitance);
-}
-
-void
-ThermalCapacitor::unserialize(CheckpointIn &cp)
-{
-    UNSERIALIZE_SCALAR(_capacitance);
-}
-
 LinearEquation
 ThermalCapacitor::getEquation(ThermalNode * n, unsigned nnodes,
                               double step) const
@@ -151,15 +116,16 @@ ThermalCapacitor::getEquation(ThermalNode * n, unsigned nnodes,
     if (n != node1 && n != node2)
         return eq;
 
-    eq[eq.cnt()] += _capacitance / step * (node1->temp - node2->temp);
+    eq[eq.cnt()] += _capacitance / step *
+        (node1->temp - node2->temp).toKelvin();
 
     if (node1->isref)
-        eq[eq.cnt()] += _capacitance / step * (-node1->temp);
+        eq[eq.cnt()] += _capacitance / step * (-node1->temp.toKelvin());
     else
         eq[node1->id] += -1.0f * _capacitance / step;
 
     if (node2->isref)
-        eq[eq.cnt()] += _capacitance / step * (node2->temp);
+        eq[eq.cnt()] += _capacitance / step * (node2->temp.toKelvin());
     else
         eq[node2->id] += 1.0f * _capacitance / step;
 
@@ -176,18 +142,6 @@ ThermalCapacitor::getEquation(ThermalNode * n, unsigned nnodes,
 ThermalModel::ThermalModel(const Params &p)
     : ClockedObject(p), stepEvent([this]{ doStep(); }, name()), _step(p.step)
 {
-}
-
-void
-ThermalModel::serialize(CheckpointOut &cp) const
-{
-    SERIALIZE_SCALAR(_step);
-}
-
-void
-ThermalModel::unserialize(CheckpointIn &cp)
-{
-    UNSERIALIZE_SCALAR(_step);
 }
 
 void
@@ -209,7 +163,7 @@ ThermalModel::doStep()
     // Get temperatures for this iteration
     std::vector <double> temps = ls.solve();
     for (unsigned i = 0; i < eq_nodes.size(); i++)
-        eq_nodes[i]->temp = temps[i];
+        eq_nodes[i]->temp = Temperature::fromKelvin(temps[i]);
 
     // Schedule next computation
     schedule(stepEvent, curTick() + SimClock::Int::s * _step);
@@ -252,26 +206,39 @@ ThermalModel::startup()
     schedule(stepEvent, curTick() + SimClock::Int::s * _step);
 }
 
-void ThermalModel::addDomain(ThermalDomain * d) {
+void
+ThermalModel::addDomain(ThermalDomain * d)
+{
     domains.push_back(d);
     entities.push_back(d);
 }
-void ThermalModel::addReference(ThermalReference * r) {
+
+void
+ThermalModel::addReference(ThermalReference * r)
+{
     references.push_back(r);
     entities.push_back(r);
 }
-void ThermalModel::addCapacitor(ThermalCapacitor * c) {
+
+void
+ThermalModel::addCapacitor(ThermalCapacitor * c)
+{
     capacitors.push_back(c);
     entities.push_back(c);
 }
-void ThermalModel::addResistor(ThermalResistor * r) {
+
+void
+ThermalModel::addResistor(ThermalResistor * r)
+{
     resistors.push_back(r);
     entities.push_back(r);
 }
 
-double ThermalModel::getTemp() const {
+Temperature
+ThermalModel::getTemperature() const
+{
     // Just pick the highest temperature
-    double temp = 0;
+    Temperature temp = Temperature::fromKelvin(0.0);
     for (auto & n : eq_nodes)
         temp = std::max(temp, n->temp);
     return temp;

@@ -29,8 +29,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * Authors: John Kalamatianos
  */
 
 #include "gpu-compute/scalar_memory_pipeline.hh"
@@ -141,9 +139,4 @@ ScalarMemPipeline::exec()
         DPRINTF(GPUMem, "CU%d: WF[%d][%d] Popping scalar mem_op\n",
                 computeUnit.cu_id, mp->simdId, mp->wfSlotId);
     }
-}
-
-void
-ScalarMemPipeline::regStats()
-{
 }

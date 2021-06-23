@@ -58,9 +58,6 @@
 #include "sim/full_system.hh"
 #include "sim/system.hh"
 
-using namespace std;
-using namespace TheISA;
-
 void
 AtomicSimpleCPU::init()
 {
@@ -697,7 +694,7 @@ AtomicSimpleCPU::tick()
                 }
 
                 if (fault != NoFault &&
-                    dynamic_pointer_cast<SyscallRetryFault>(fault)) {
+                    std::dynamic_pointer_cast<SyscallRetryFault>(fault)) {
                     // Retry execution of system calls after a delay.
                     // Prevents immediate re-execution since conditions which
                     // caused the retry are unlikely to change every tick.
@@ -763,7 +760,7 @@ AtomicSimpleCPU::regProbePoints()
 {
     BaseCPU::regProbePoints();
 
-    ppCommit = new ProbePointArg<pair<SimpleThread*, const StaticInstPtr>>
+    ppCommit = new ProbePointArg<std::pair<SimpleThread*, const StaticInstPtr>>
                                 (getProbeManager(), "Commit");
 }
 

@@ -243,7 +243,7 @@ ElasticTrace::updateRegDep(const DynInstConstPtr& dyn_inst)
         if (!src_reg.isMiscReg() &&
             !src_reg.isZeroReg()) {
             // Get the physical register index of the i'th source register.
-            PhysRegIdPtr phys_src_reg = dyn_inst->renamedSrcRegIdx(src_idx);
+            PhysRegIdPtr phys_src_reg = dyn_inst->regs.renamedSrcIdx(src_idx);
             DPRINTFR(ElasticTrace, "[sn:%lli] Check map for src reg"
                      " %i (%s)\n", seq_num,
                      phys_src_reg->flatIndex(), phys_src_reg->className());
@@ -276,7 +276,8 @@ ElasticTrace::updateRegDep(const DynInstConstPtr& dyn_inst)
             !dest_reg.isZeroReg()) {
             // Get the physical register index of the i'th destination
             // register.
-            PhysRegIdPtr phys_dest_reg = dyn_inst->renamedDestRegIdx(dest_idx);
+            PhysRegIdPtr phys_dest_reg =
+                dyn_inst->regs.renamedDestIdx(dest_idx);
             DPRINTFR(ElasticTrace, "[sn:%lli] Update map for dest reg"
                      " %i (%s)\n", seq_num, phys_dest_reg->flatIndex(),
                      dest_reg.className());
@@ -877,24 +878,28 @@ ElasticTrace::writeDepTrace(uint32_t num_to_write)
 
 ElasticTrace::ElasticTraceStats::ElasticTraceStats(Stats::Group *parent)
     : Stats::Group(parent),
-      ADD_STAT(numRegDep, "Number of register dependencies recorded during"
-          " tracing"),
-      ADD_STAT(numOrderDepStores, "Number of commit order (rob) dependencies"
-          " for a store recorded on a past load/store during tracing"),
-      ADD_STAT(numIssueOrderDepLoads, "Number of loads that got assigned"
-          " issue order dependency because they were dependency-free"),
-      ADD_STAT(numIssueOrderDepStores, "Number of stores that got assigned"
-          " issue order dependency because they were dependency-free"),
-      ADD_STAT(numIssueOrderDepOther, "Number of non load/store insts that"
-          " got assigned issue order dependency because they were"
-          " dependency-free"),
-      ADD_STAT(numFilteredNodes, "No. of nodes filtered out before writing"
-          " the output trace"),
-      ADD_STAT(maxNumDependents, "Maximum number or dependents on any"
-          " instruction"),
-      ADD_STAT(maxTempStoreSize, "Maximum size of the temporary store during"
-          " the run"),
-      ADD_STAT(maxPhysRegDepMapSize, "Maximum size of register dependency map")
+      ADD_STAT(numRegDep, UNIT_COUNT,
+               "Number of register dependencies recorded during tracing"),
+      ADD_STAT(numOrderDepStores, UNIT_COUNT,
+               "Number of commit order (rob) dependencies for a store "
+               "recorded on a past load/store during tracing"),
+      ADD_STAT(numIssueOrderDepLoads, UNIT_COUNT,
+               "Number of loads that got assigned issue order dependency "
+               "because they were dependency-free"),
+      ADD_STAT(numIssueOrderDepStores, UNIT_COUNT,
+               "Number of stores that got assigned issue order dependency "
+               "because they were dependency-free"),
+      ADD_STAT(numIssueOrderDepOther, UNIT_COUNT,
+               "Number of non load/store insts that got assigned issue order "
+               "dependency because they were dependency-free"),
+      ADD_STAT(numFilteredNodes, UNIT_COUNT,
+               "No. of nodes filtered out before writing the output trace"),
+      ADD_STAT(maxNumDependents, UNIT_COUNT,
+               "Maximum number or dependents on any instruction"),
+      ADD_STAT(maxTempStoreSize, UNIT_COUNT,
+               "Maximum size of the temporary store during the run"),
+      ADD_STAT(maxPhysRegDepMapSize, UNIT_COUNT,
+               "Maximum size of register dependency map")
 {
 }
 

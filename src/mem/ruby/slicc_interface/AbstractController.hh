@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017,2019,2020 ARM Limited
+ * Copyright (c) 2017,2019-2021 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -76,10 +76,9 @@ class RejectException: public std::exception
 class AbstractController : public ClockedObject, public Consumer
 {
   public:
-    typedef RubyControllerParams Params;
+    PARAMS(RubyController);
     AbstractController(const Params &p);
     void init();
-    const Params &params() const { return (const Params &)_params; }
 
     NodeID getVersion() const { return m_machineID.getNum(); }
     MachineType getType() const { return m_machineID.getType(); }
@@ -117,7 +116,16 @@ class AbstractController : public ClockedObject, public Consumer
     //! These functions are used by ruby system to read/write the data blocks
     //! that exist with in the controller.
     virtual bool functionalReadBuffers(PacketPtr&) = 0;
-    virtual void functionalRead(const Addr &addr, PacketPtr) = 0;
+    virtual void functionalRead(const Addr &addr, PacketPtr)
+    { panic("functionalRead(Addr,PacketPtr) not implemented"); }
+
+    //! Functional read that reads only blocks not present in the mask.
+    //! Return number of bytes read.
+    virtual bool functionalReadBuffers(PacketPtr&, WriteMask &mask) = 0;
+    virtual void functionalRead(const Addr &addr, PacketPtr pkt,
+                               WriteMask &mask)
+    { panic("functionalRead(Addr,PacketPtr,WriteMask) not implemented"); }
+
     void functionalMemoryRead(PacketPtr);
     //! The return value indicates the number of messages written with the
     //! data from the packet.
@@ -128,6 +136,15 @@ class AbstractController : public ClockedObject, public Consumer
     //! Function for enqueuing a prefetch request
     virtual void enqueuePrefetch(const Addr &, const RubyRequestType&)
     { fatal("Prefetches not implemented!");}
+
+    //! Notifies controller of a request coalesced at the sequencer.
+    //! By default, it does nothing. Behavior is protocol-specific
+    virtual void notifyCoalesced(const Addr& addr,
+                                 const RubyRequestType& type,
+                                 const RequestPtr& req,
+                                 const DataBlock& data_blk,
+                                 const bool& was_miss)
+    { }
 
     //! Function for collating statistics from all the controllers of this
     //! particular type. This function should only be called from the
@@ -151,9 +168,9 @@ class AbstractController : public ClockedObject, public Consumer
     MachineID getMachineID() const { return m_machineID; }
     RequestorID getRequestorId() const { return m_id; }
 
-    Stats::Histogram& getDelayHist() { return stats.m_delayHistogram; }
+    Stats::Histogram& getDelayHist() { return stats.delayHistogram; }
     Stats::Histogram& getDelayVCHist(uint32_t index)
-    { return *(stats.m_delayVCHistogram[index]); }
+    { return *(stats.delayVCHistogram[index]); }
 
     bool respondsTo(Addr addr)
     {
@@ -216,10 +233,12 @@ class AbstractController : public ClockedObject, public Consumer
      */
     template<typename EventType, typename StateType>
     void incomingTransactionStart(Addr addr,
-        EventType type, StateType initialState)
+        EventType type, StateType initialState, bool retried)
     {
         assert(m_inTrans.find(addr) == m_inTrans.end());
         m_inTrans[addr] = {type, initialState, curTick()};
+        if (retried)
+          ++(*stats.inTransLatRetries[type]);
     }
 
     /**
@@ -233,10 +252,11 @@ class AbstractController : public ClockedObject, public Consumer
     {
         auto iter = m_inTrans.find(addr);
         assert(iter != m_inTrans.end());
-        stats.m_inTransLatHist[iter->second.transaction]
+        stats.inTransLatHist[iter->second.transaction]
                               [iter->second.state]
                               [(unsigned)finalState]->sample(
                                 ticksToCycles(curTick() - iter->second.time));
+        ++(*stats.inTransLatTotal[iter->second.transaction]);
        m_inTrans.erase(iter);
     }
 
@@ -260,16 +280,19 @@ class AbstractController : public ClockedObject, public Consumer
      *
      * @param addr address of the line with an outstanding transaction
      */
-    void outgoingTransactionEnd(Addr addr)
+    void outgoingTransactionEnd(Addr addr, bool retried)
     {
         auto iter = m_outTrans.find(addr);
         assert(iter != m_outTrans.end());
-        stats.m_outTransLatHist[iter->second.transaction]->sample(
+        stats.outTransLatHist[iter->second.transaction]->sample(
             ticksToCycles(curTick() - iter->second.time));
+        if (retried)
+          ++(*stats.outTransLatHistRetries[iter->second.transaction]);
         m_outTrans.erase(iter);
     }
 
     void stallBuffer(MessageBuffer* buf, Addr addr);
+    void wakeUpBuffer(MessageBuffer* buf, Addr addr);
     void wakeUpBuffers(Addr addr);
     void wakeUpAllBuffers(Addr addr);
     void wakeUpAllBuffers();
@@ -354,20 +377,23 @@ class AbstractController : public ClockedObject, public Consumer
         // Initialized by the SLICC compiler for all combinations of event and
         // states. Only histograms with samples will appear in the stats
         std::vector<std::vector<std::vector<Stats::Histogram*>>>
-          m_inTransLatHist;
+          inTransLatHist;
+        std::vector<Stats::Scalar*> inTransLatRetries;
+        std::vector<Stats::Scalar*> inTransLatTotal;
 
         // Initialized by the SLICC compiler for all events.
         // Only histograms with samples will appear in the stats.
-        std::vector<Stats::Histogram*> m_outTransLatHist;
+        std::vector<Stats::Histogram*> outTransLatHist;
+        std::vector<Stats::Scalar*> outTransLatHistRetries;
 
         //! Counter for the number of cycles when the transitions carried out
         //! were equal to the maximum allowed
-        Stats::Scalar m_fully_busy_cycles;
+        Stats::Scalar fullyBusyCycles;
 
         //! Histogram for profiling delay for the messages this controller
         //! cares for
-        Stats::Histogram m_delayHistogram;
-        std::vector<Stats::Histogram *> m_delayVCHistogram;
+        Stats::Histogram delayHistogram;
+        std::vector<Stats::Histogram *> delayVCHistogram;
     } stats;
 
 };

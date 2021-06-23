@@ -51,8 +51,6 @@
 #include "mem/packet_access.hh"
 #include "sim/system.hh"
 
-using namespace std;
-
 AbstractMemory::AbstractMemory(const Params &p) :
     ClockedObject(p), range(p.range), pmemAddr(NULL),
     backdoor(params().range, nullptr,
@@ -113,26 +111,25 @@ AbstractMemory::setBackingStore(uint8_t* pmem_addr)
 
 AbstractMemory::MemStats::MemStats(AbstractMemory &_mem)
     : Stats::Group(&_mem), mem(_mem),
-    bytesRead(this, "bytes_read",
-              "Number of bytes read from this memory"),
-    bytesInstRead(this, "bytes_inst_read",
-                  "Number of instructions bytes read from this memory"),
-    bytesWritten(this, "bytes_written",
-                 "Number of bytes written to this memory"),
-    numReads(this, "num_reads",
+    ADD_STAT(bytesRead, UNIT_BYTE, "Number of bytes read from this memory"),
+    ADD_STAT(bytesInstRead, UNIT_BYTE,
+             "Number of instructions bytes read from this memory"),
+    ADD_STAT(bytesWritten, UNIT_BYTE,
+             "Number of bytes written to this memory"),
+    ADD_STAT(numReads, UNIT_COUNT,
              "Number of read requests responded to by this memory"),
-    numWrites(this, "num_writes",
-              "Number of write requests responded to by this memory"),
-    numOther(this, "num_other",
+    ADD_STAT(numWrites, UNIT_COUNT,
+             "Number of write requests responded to by this memory"),
+    ADD_STAT(numOther, UNIT_COUNT,
              "Number of other requests responded to by this memory"),
-    bwRead(this, "bw_read",
-           "Total read bandwidth from this memory (bytes/s)"),
-    bwInstRead(this, "bw_inst_read",
-               "Instruction read bandwidth from this memory (bytes/s)"),
-    bwWrite(this, "bw_write",
-            "Write bandwidth from this memory (bytes/s)"),
-    bwTotal(this, "bw_total",
-            "Total bandwidth to/from this memory (bytes/s)")
+    ADD_STAT(bwRead, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Total read bandwidth from this memory"),
+    ADD_STAT(bwInstRead, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Instruction read bandwidth from this memory"),
+    ADD_STAT(bwWrite, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Write bandwidth from this memory"),
+    ADD_STAT(bwTotal, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Total bandwidth to/from this memory")
 {
 }
 
@@ -254,7 +251,7 @@ AbstractMemory::trackLoadLocked(PacketPtr pkt)
     // first we check if we already have a locked addr for this
     // xc.  Since each xc only gets one, we just update the
     // existing record with the new address.
-    list<LockedAddr>::iterator i;
+    std::list<LockedAddr>::iterator i;
 
     for (i = lockedAddrList.begin(); i != lockedAddrList.end(); ++i) {
         if (i->matchesContext(req)) {
@@ -294,7 +291,7 @@ AbstractMemory::checkLockedAddrList(PacketPtr pkt)
     // Only remove records when we succeed in finding a record for (xc, addr);
     // then, remove all records with this address.  Failed store-conditionals do
     // not blow unrelated reservations.
-    list<LockedAddr>::iterator i = lockedAddrList.begin();
+    std::list<LockedAddr>::iterator i = lockedAddrList.begin();
 
     if (isLLSC) {
         while (i != lockedAddrList.end()) {

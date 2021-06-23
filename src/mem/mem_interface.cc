@@ -41,6 +41,7 @@
 #include "mem/mem_interface.hh"
 
 #include "base/bitfield.hh"
+#include "base/cprintf.hh"
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
 #include "debug/DRAMPower.hh"
@@ -48,7 +49,6 @@
 #include "debug/NVM.hh"
 #include "sim/system.hh"
 
-using namespace std;
 using namespace Data;
 
 MemInterface::MemInterface(const MemInterfaceParams &_p)
@@ -165,10 +165,10 @@ MemInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
                    pkt_addr, size);
 }
 
-pair<MemPacketQueue::iterator, Tick>
+std::pair<MemPacketQueue::iterator, Tick>
 DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 {
-    vector<uint32_t> earliest_banks(ranksPerChannel, 0);
+    std::vector<uint32_t> earliest_banks(ranksPerChannel, 0);
 
     // Has minBankPrep been called to populate earliest_banks?
     bool filled_earliest_banks = false;
@@ -277,7 +277,7 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
         DPRINTF(DRAM, "%s no available DRAM ranks found\n", __func__);
     }
 
-    return make_pair(selected_pkt_it, selected_col_at);
+    return std::make_pair(selected_pkt_it, selected_col_at);
 }
 
 void
@@ -452,7 +452,7 @@ DRAMInterface::prechargeBank(Rank& rank_ref, Bank& bank, Tick pre_tick,
     }
 }
 
-pair<Tick, Tick>
+std::pair<Tick, Tick>
 DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                              const std::vector<MemPacketQueue>& queue)
 {
@@ -710,7 +710,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
 
     }
     // Update bus state to reflect when previous command was issued
-    return make_pair(cmd_at, cmd_at + burst_gap);
+    return std::make_pair(cmd_at, cmd_at + burst_gap);
 }
 
 void
@@ -1033,12 +1033,12 @@ DRAMInterface::suspend()
     }
 }
 
-pair<vector<uint32_t>, bool>
+std::pair<std::vector<uint32_t>, bool>
 DRAMInterface::minBankPrep(const MemPacketQueue& queue,
                       Tick min_col_at) const
 {
     Tick min_act_at = MaxTick;
-    vector<uint32_t> bank_mask(ranksPerChannel, 0);
+    std::vector<uint32_t> bank_mask(ranksPerChannel, 0);
 
     // latest Tick for which ACT can occur without incurring additoinal
     // delay on the data bus
@@ -1053,7 +1053,7 @@ DRAMInterface::minBankPrep(const MemPacketQueue& queue,
 
     // determine if we have queued transactions targetting the
     // bank in question
-    vector<bool> got_waiting(ranksPerChannel * banksPerRank, false);
+    std::vector<bool> got_waiting(ranksPerChannel * banksPerRank, false);
     for (const auto& p : queue) {
         if (p->isDram() && ranks[p->rank]->inRefIdleState())
             got_waiting[p->bankId] = true;
@@ -1115,7 +1115,7 @@ DRAMInterface::minBankPrep(const MemPacketQueue& queue,
         }
     }
 
-    return make_pair(bank_mask, hidden_bank_prep);
+    return std::make_pair(bank_mask, hidden_bank_prep);
 }
 
 DRAMInterface::Rank::Rank(const DRAMInterfaceParams &_p,
@@ -1849,39 +1849,50 @@ DRAMInterface::DRAMStats::DRAMStats(DRAMInterface &_dram)
     : Stats::Group(&_dram),
     dram(_dram),
 
-    ADD_STAT(readBursts, "Number of DRAM read bursts"),
-    ADD_STAT(writeBursts, "Number of DRAM write bursts"),
+    ADD_STAT(readBursts, UNIT_COUNT, "Number of DRAM read bursts"),
+    ADD_STAT(writeBursts, UNIT_COUNT, "Number of DRAM write bursts"),
 
-    ADD_STAT(perBankRdBursts, "Per bank write bursts"),
-    ADD_STAT(perBankWrBursts, "Per bank write bursts"),
+    ADD_STAT(perBankRdBursts, UNIT_COUNT, "Per bank write bursts"),
+    ADD_STAT(perBankWrBursts, UNIT_COUNT, "Per bank write bursts"),
 
-    ADD_STAT(totQLat, "Total ticks spent queuing"),
-    ADD_STAT(totBusLat, "Total ticks spent in databus transfers"),
-    ADD_STAT(totMemAccLat,
+    ADD_STAT(totQLat, UNIT_TICK, "Total ticks spent queuing"),
+    ADD_STAT(totBusLat, UNIT_TICK, "Total ticks spent in databus transfers"),
+    ADD_STAT(totMemAccLat, UNIT_TICK,
              "Total ticks spent from burst creation until serviced "
              "by the DRAM"),
 
-    ADD_STAT(avgQLat, "Average queueing delay per DRAM burst"),
-    ADD_STAT(avgBusLat, "Average bus latency per DRAM burst"),
-    ADD_STAT(avgMemAccLat, "Average memory access latency per DRAM burst"),
+    ADD_STAT(avgQLat, UNIT_RATE(Stats::Units::Tick, Stats::Units::Count),
+             "Average queueing delay per DRAM burst"),
+    ADD_STAT(avgBusLat, UNIT_RATE(Stats::Units::Tick, Stats::Units::Count),
+             "Average bus latency per DRAM burst"),
+    ADD_STAT(avgMemAccLat, UNIT_RATE(Stats::Units::Tick, Stats::Units::Count),
+             "Average memory access latency per DRAM burst"),
 
-    ADD_STAT(readRowHits, "Number of row buffer hits during reads"),
-    ADD_STAT(writeRowHits, "Number of row buffer hits during writes"),
-    ADD_STAT(readRowHitRate, "Row buffer hit rate for reads"),
-    ADD_STAT(writeRowHitRate, "Row buffer hit rate for writes"),
+    ADD_STAT(readRowHits, UNIT_COUNT,
+             "Number of row buffer hits during reads"),
+    ADD_STAT(writeRowHits, UNIT_COUNT,
+             "Number of row buffer hits during writes"),
+    ADD_STAT(readRowHitRate, UNIT_RATIO, "Row buffer hit rate for reads"),
+    ADD_STAT(writeRowHitRate, UNIT_RATIO, "Row buffer hit rate for writes"),
 
-    ADD_STAT(bytesPerActivate, "Bytes accessed per row activation"),
-    ADD_STAT(bytesRead, "Total number of bytes read from DRAM"),
-    ADD_STAT(bytesWritten, "Total number of bytes written to DRAM"),
-    ADD_STAT(avgRdBW, "Average DRAM read bandwidth in MiBytes/s"),
-    ADD_STAT(avgWrBW, "Average DRAM write bandwidth in MiBytes/s"),
-    ADD_STAT(peakBW, "Theoretical peak bandwidth in MiByte/s"),
+    ADD_STAT(bytesPerActivate, UNIT_BYTE, "Bytes accessed per row activation"),
+    ADD_STAT(bytesRead, UNIT_BYTE, "Total number of bytes read from DRAM"),
+    ADD_STAT(bytesWritten, UNIT_BYTE, "Total number of bytes written to DRAM"),
+    ADD_STAT(avgRdBW, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Average DRAM read bandwidth in MiBytes/s"),
+    ADD_STAT(avgWrBW, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Average DRAM write bandwidth in MiBytes/s"),
+    ADD_STAT(peakBW,  UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Theoretical peak bandwidth in MiByte/s"),
 
-    ADD_STAT(busUtil, "Data bus utilization in percentage"),
-    ADD_STAT(busUtilRead, "Data bus utilization in percentage for reads"),
-    ADD_STAT(busUtilWrite, "Data bus utilization in percentage for writes"),
+    ADD_STAT(busUtil, UNIT_RATIO, "Data bus utilization in percentage"),
+    ADD_STAT(busUtilRead, UNIT_RATIO,
+             "Data bus utilization in percentage for reads"),
+    ADD_STAT(busUtilWrite, UNIT_RATIO,
+             "Data bus utilization in percentage for writes"),
 
-    ADD_STAT(pageHitRate, "Row buffer hit rate, read and write combined")
+    ADD_STAT(pageHitRate, UNIT_RATIO,
+             "Row buffer hit rate, read and write combined")
 
 {
 }
@@ -1938,24 +1949,32 @@ DRAMInterface::RankStats::RankStats(DRAMInterface &_dram, Rank &_rank)
     : Stats::Group(&_dram, csprintf("rank%d", _rank.rank).c_str()),
     rank(_rank),
 
-    ADD_STAT(actEnergy, "Energy for activate commands per rank (pJ)"),
-    ADD_STAT(preEnergy, "Energy for precharge commands per rank (pJ)"),
-    ADD_STAT(readEnergy, "Energy for read commands per rank (pJ)"),
-    ADD_STAT(writeEnergy, "Energy for write commands per rank (pJ)"),
-    ADD_STAT(refreshEnergy, "Energy for refresh commands per rank (pJ)"),
-    ADD_STAT(actBackEnergy, "Energy for active background per rank (pJ)"),
-    ADD_STAT(preBackEnergy, "Energy for precharge background per rank (pJ)"),
-    ADD_STAT(actPowerDownEnergy,
+    ADD_STAT(actEnergy, UNIT_JOULE,
+             "Energy for activate commands per rank (pJ)"),
+    ADD_STAT(preEnergy, UNIT_JOULE,
+             "Energy for precharge commands per rank (pJ)"),
+    ADD_STAT(readEnergy, UNIT_JOULE,
+             "Energy for read commands per rank (pJ)"),
+    ADD_STAT(writeEnergy, UNIT_JOULE,
+             "Energy for write commands per rank (pJ)"),
+    ADD_STAT(refreshEnergy, UNIT_JOULE,
+             "Energy for refresh commands per rank (pJ)"),
+    ADD_STAT(actBackEnergy, UNIT_JOULE,
+             "Energy for active background per rank (pJ)"),
+    ADD_STAT(preBackEnergy, UNIT_JOULE,
+             "Energy for precharge background per rank (pJ)"),
+    ADD_STAT(actPowerDownEnergy, UNIT_JOULE,
              "Energy for active power-down per rank (pJ)"),
-    ADD_STAT(prePowerDownEnergy,
+    ADD_STAT(prePowerDownEnergy, UNIT_JOULE,
              "Energy for precharge power-down per rank (pJ)"),
-    ADD_STAT(selfRefreshEnergy, "Energy for self refresh per rank (pJ)"),
+    ADD_STAT(selfRefreshEnergy, UNIT_JOULE,
+             "Energy for self refresh per rank (pJ)"),
 
-    ADD_STAT(totalEnergy, "Total energy per rank (pJ)"),
-    ADD_STAT(averagePower, "Core power per rank (mW)"),
+    ADD_STAT(totalEnergy, UNIT_JOULE, "Total energy per rank (pJ)"),
+    ADD_STAT(averagePower, UNIT_WATT, "Core power per rank (mW)"),
 
-    ADD_STAT(totalIdleTime, "Total Idle time Per DRAM Rank"),
-    ADD_STAT(pwrStateTime, "Time in different power states")
+    ADD_STAT(totalIdleTime, UNIT_TICK, "Total Idle time Per DRAM Rank"),
+    ADD_STAT(pwrStateTime, UNIT_TICK, "Time in different power states")
 {
 }
 
@@ -2057,7 +2076,7 @@ void NVMInterface::setupRank(const uint8_t rank, const bool is_read)
     }
 }
 
-pair<MemPacketQueue::iterator, Tick>
+std::pair<MemPacketQueue::iterator, Tick>
 NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 {
     // remember if we found a hit, but one that cannit issue seamlessly
@@ -2110,7 +2129,7 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
         DPRINTF(NVM, "%s no available NVM ranks found\n", __func__);
     }
 
-    return make_pair(selected_pkt_it, selected_col_at);
+    return std::make_pair(selected_pkt_it, selected_col_at);
 }
 
 void
@@ -2262,7 +2281,7 @@ NVMInterface::burstReady(MemPacket* pkt) const {
     return (read_rdy || write_rdy);
 }
 
-pair<Tick, Tick>
+    std::pair<Tick, Tick>
 NVMInterface::doBurstAccess(MemPacket* pkt, Tick next_burst_at)
 {
     DPRINTF(NVM, "NVM Timing access to addr %lld, rank/bank/row %d %d %d\n",
@@ -2404,7 +2423,7 @@ NVMInterface::doBurstAccess(MemPacket* pkt, Tick next_burst_at)
         stats.perBankWrBursts[pkt->bankId]++;
     }
 
-    return make_pair(cmd_at, cmd_at + tBURST);
+    return std::make_pair(cmd_at, cmd_at + tBURST);
 }
 
 void
@@ -2476,35 +2495,44 @@ NVMInterface::NVMStats::NVMStats(NVMInterface &_nvm)
     : Stats::Group(&_nvm),
     nvm(_nvm),
 
-    ADD_STAT(readBursts, "Number of NVM read bursts"),
-    ADD_STAT(writeBursts, "Number of NVM write bursts"),
+    ADD_STAT(readBursts, UNIT_COUNT, "Number of NVM read bursts"),
+    ADD_STAT(writeBursts, UNIT_COUNT, "Number of NVM write bursts"),
 
-    ADD_STAT(perBankRdBursts, "Per bank write bursts"),
-    ADD_STAT(perBankWrBursts, "Per bank write bursts"),
+    ADD_STAT(perBankRdBursts, UNIT_COUNT, "Per bank write bursts"),
+    ADD_STAT(perBankWrBursts, UNIT_COUNT, "Per bank write bursts"),
 
-    ADD_STAT(totQLat, "Total ticks spent queuing"),
-    ADD_STAT(totBusLat, "Total ticks spent in databus transfers"),
-    ADD_STAT(totMemAccLat,
+    ADD_STAT(totQLat, UNIT_TICK, "Total ticks spent queuing"),
+    ADD_STAT(totBusLat, UNIT_TICK, "Total ticks spent in databus transfers"),
+    ADD_STAT(totMemAccLat, UNIT_TICK,
              "Total ticks spent from burst creation until serviced "
              "by the NVM"),
-    ADD_STAT(avgQLat, "Average queueing delay per NVM burst"),
-    ADD_STAT(avgBusLat, "Average bus latency per NVM burst"),
-    ADD_STAT(avgMemAccLat, "Average memory access latency per NVM burst"),
+    ADD_STAT(avgQLat, UNIT_RATE(Stats::Units::Tick, Stats::Units::Count),
+             "Average queueing delay per NVM burst"),
+    ADD_STAT(avgBusLat, UNIT_RATE(Stats::Units::Tick, Stats::Units::Count),
+             "Average bus latency per NVM burst"),
+    ADD_STAT(avgMemAccLat, UNIT_RATE(Stats::Units::Tick, Stats::Units::Count),
+             "Average memory access latency per NVM burst"),
 
-    ADD_STAT(bytesRead, "Total number of bytes read from DRAM"),
-    ADD_STAT(bytesWritten, "Total number of bytes written to DRAM"),
-    ADD_STAT(avgRdBW, "Average DRAM read bandwidth in MiBytes/s"),
-    ADD_STAT(avgWrBW, "Average DRAM write bandwidth in MiBytes/s"),
-    ADD_STAT(peakBW, "Theoretical peak bandwidth in MiByte/s"),
-    ADD_STAT(busUtil, "NVM Data bus utilization in percentage"),
-    ADD_STAT(busUtilRead, "NVM Data bus read utilization in percentage"),
-    ADD_STAT(busUtilWrite, "NVM Data bus write utilization in percentage"),
+    ADD_STAT(bytesRead, UNIT_BYTE, "Total number of bytes read from DRAM"),
+    ADD_STAT(bytesWritten, UNIT_BYTE, "Total number of bytes written to DRAM"),
+    ADD_STAT(avgRdBW, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Average DRAM read bandwidth in MiBytes/s"),
+    ADD_STAT(avgWrBW, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Average DRAM write bandwidth in MiBytes/s"),
+    ADD_STAT(peakBW, UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+             "Theoretical peak bandwidth in MiByte/s"),
+    ADD_STAT(busUtil, UNIT_RATIO, "NVM Data bus utilization in percentage"),
+    ADD_STAT(busUtilRead, UNIT_RATIO,
+             "NVM Data bus read utilization in percentage"),
+    ADD_STAT(busUtilWrite, UNIT_RATIO,
+             "NVM Data bus write utilization in percentage"),
 
-    ADD_STAT(pendingReads, "Reads issued to NVM for which data has not been "
-             "transferred"),
-    ADD_STAT(pendingWrites, "Number of outstanding writes to NVM"),
-    ADD_STAT(bytesPerBank, "Bytes read within a bank before loading "
-             "new bank")
+    ADD_STAT(pendingReads, UNIT_COUNT,
+             "Reads issued to NVM for which data has not been transferred"),
+    ADD_STAT(pendingWrites, UNIT_COUNT, "Number of outstanding writes to NVM"),
+    ADD_STAT(bytesPerBank, UNIT_BYTE,
+             "Bytes read within a bank before loading new bank")
+
 {
 }
 

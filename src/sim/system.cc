@@ -71,10 +71,7 @@
 #include "sim/full_system.hh"
 #include "sim/redirect_path.hh"
 
-using namespace std;
-using namespace TheISA;
-
-vector<System *> System::systemList;
+std::vector<System *> System::systemList;
 
 void
 System::Threads::Thread::resume()
@@ -129,7 +126,7 @@ System::Threads::insert(ThreadContext *tc, ContextID id)
 #   if THE_ISA != NULL_ISA
     int port = getRemoteGDBPort();
     if (port) {
-        t.gdb = new RemoteGDB(sys, tc, port + id);
+        t.gdb = new TheISA::RemoteGDB(sys, tc, port + id);
         t.gdb->listen();
     }
 #   endif
@@ -225,7 +222,6 @@ System::System(const Params &p)
       workItemsEnd(0),
       numWorkIds(p.num_work_ids),
       thermalModel(p.thermal_model),
-      _params(p),
       _m5opRange(p.m5ops_base ?
                  RangeSize(p.m5ops_base, 0x10000) :
                  AddrRange(1, 0)), // Create an empty range if disabled
@@ -379,18 +375,18 @@ System::validKvmEnvironment() const
 Addr
 System::allocPhysPages(int npages)
 {
-    Addr return_addr = pagePtr << PageShift;
+    Addr return_addr = pagePtr << TheISA::PageShift;
     pagePtr += npages;
 
-    Addr next_return_addr = pagePtr << PageShift;
+    Addr next_return_addr = pagePtr << TheISA::PageShift;
 
     if (_m5opRange.contains(next_return_addr)) {
         warn("Reached m5ops MMIO region\n");
         return_addr = 0xffffffff;
-        pagePtr = 0xffffffff >> PageShift;
+        pagePtr = 0xffffffff >> TheISA::PageShift;
     }
 
-    if ((pagePtr << PageShift) > physmem.totalSize())
+    if ((pagePtr << TheISA::PageShift) > physmem.totalSize())
         fatal("Out of memory, please increase size of physical memory.");
     return return_addr;
 }
@@ -404,7 +400,7 @@ System::memSize() const
 Addr
 System::freeMemSize() const
 {
-   return physmem.totalSize() - (pagePtr << PageShift);
+   return physmem.totalSize() - (pagePtr << TheISA::PageShift);
 }
 
 bool
@@ -484,10 +480,10 @@ System::regStats()
 
     for (uint32_t j = 0; j < numWorkIds ; j++) {
         workItemStats[j] = new Stats::Histogram(this);
-        stringstream namestr;
+        std::stringstream namestr;
         ccprintf(namestr, "work_item_type%d", j);
         workItemStats[j]->init(20)
-                         .name(name() + "." + namestr.str())
+                         .name(namestr.str())
                          .desc("Run time stat for" + namestr.str())
                          .prereq(*workItemStats[j]);
     }
@@ -513,16 +509,17 @@ System::workItemEnd(uint32_t tid, uint32_t workid)
 void
 System::printSystems()
 {
-    ios::fmtflags flags(cerr.flags());
+    std::ios::fmtflags flags(std::cerr.flags());
 
-    vector<System *>::iterator i = systemList.begin();
-    vector<System *>::iterator end = systemList.end();
+    std::vector<System *>::iterator i = systemList.begin();
+    std::vector<System *>::iterator end = systemList.end();
     for (; i != end; ++i) {
         System *sys = *i;
-        cerr << "System " << sys->name() << ": " << hex << sys << endl;
+        std::cerr << "System " << sys->name() << ": " << std::hex << sys
+                  << std::endl;
     }
 
-    cerr.flags(flags);
+    std::cerr.flags(flags);
 }
 
 void
@@ -535,7 +532,7 @@ std::string
 System::stripSystemName(const std::string& requestor_name) const
 {
     if (startswith(requestor_name, name())) {
-        return requestor_name.substr(name().size());
+        return requestor_name.substr(name().size() + 1);
     } else {
         return requestor_name;
     }

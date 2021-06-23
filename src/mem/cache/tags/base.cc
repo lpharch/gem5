@@ -116,7 +116,7 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     // Check if cache warm up is done
     if (!warmedUp && stats.tagsInUse.value() >= warmupBound) {
         warmedUp = true;
-        stats.warmupCycle = curTick();
+        stats.warmupTick = curTick();
     }
 
     // We only need to write into one tag and one data block.
@@ -217,27 +217,27 @@ BaseTags::BaseTagStats::BaseTagStats(BaseTags &_tags)
     : Stats::Group(&_tags),
     tags(_tags),
 
-    tagsInUse(this, "tagsinuse",
-              "Cycle average of tags in use"),
-    totalRefs(this, "total_refs",
-              "Total number of references to valid blocks."),
-    sampledRefs(this, "sampled_refs",
-                "Sample count of references to valid blocks."),
-    avgRefs(this, "avg_refs",
-            "Average number of references to valid blocks."),
-    warmupCycle(this, "warmup_cycle",
-                "Cycle when the warmup percentage was hit."),
-    occupancies(this, "occ_blocks",
-                "Average occupied blocks per requestor"),
-    avgOccs(this, "occ_percent",
-            "Average percentage of cache occupancy"),
-    occupanciesTaskId(this, "occ_task_id_blocks",
-                      "Occupied blocks per task id"),
-    ageTaskId(this, "age_task_id_blocks", "Occupied blocks per task id"),
-    percentOccsTaskId(this, "occ_task_id_percent",
-                      "Percentage of cache occupancy per task id"),
-    tagAccesses(this, "tag_accesses", "Number of tag accesses"),
-    dataAccesses(this, "data_accesses", "Number of data accesses")
+    ADD_STAT(tagsInUse, UNIT_RATE(Stats::Units::Tick, Stats::Units::Count),
+             "Average ticks per tags in use"),
+    ADD_STAT(totalRefs, UNIT_COUNT,
+             "Total number of references to valid blocks."),
+    ADD_STAT(sampledRefs, UNIT_COUNT,
+             "Sample count of references to valid blocks."),
+    ADD_STAT(avgRefs, UNIT_RATE(Stats::Units::Count, Stats::Units::Count),
+             "Average number of references to valid blocks."),
+    ADD_STAT(warmupTick, UNIT_TICK,
+             "The tick when the warmup percentage was hit."),
+    ADD_STAT(occupancies, UNIT_RATE(Stats::Units::Count, Stats::Units::Tick),
+             "Average occupied blocks per tick, per requestor"),
+    ADD_STAT(avgOccs, UNIT_RATE(Stats::Units::Ratio, Stats::Units::Tick),
+             "Average percentage of cache occupancy"),
+    ADD_STAT(occupanciesTaskId, UNIT_COUNT, "Occupied blocks per task id"),
+    ADD_STAT(ageTaskId, UNIT_COUNT,
+             "Occupied blocks per task id, per block age"),
+    ADD_STAT(ratioOccsTaskId, UNIT_RATIO,
+             "Ratio of occupied blocks and all blocks, per task id"),
+    ADD_STAT(tagAccesses, UNIT_COUNT, "Number of tag accesses"),
+    ADD_STAT(dataAccesses, UNIT_COUNT, "Number of data accesses")
 {
 }
 
@@ -277,9 +277,9 @@ BaseTags::BaseTagStats::regStats()
         .flags(nozero | nonan)
         ;
 
-    percentOccsTaskId.flags(nozero);
+    ratioOccsTaskId.flags(nozero);
 
-    percentOccsTaskId = occupanciesTaskId / Stats::constant(tags.numBlocks);
+    ratioOccsTaskId = occupanciesTaskId / Stats::constant(tags.numBlocks);
 }
 
 void

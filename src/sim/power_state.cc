@@ -37,10 +37,13 @@
 
 #include "sim/power_state.hh"
 
+#include <cassert>
+
 #include "base/logging.hh"
 #include "base/trace.hh"
 #include "debug/PowerDomain.hh"
 #include "sim/power_domain.hh"
+#include "sim/serialize.hh"
 
 PowerState::PowerState(const PowerStateParams &p) :
     SimObject(p), _currState(p.default_state),
@@ -217,13 +220,12 @@ PowerState::getWeights() const
 PowerState::PowerStateStats::PowerStateStats(PowerState &co)
     : Stats::Group(&co),
     powerState(co),
-    ADD_STAT(numTransitions,
-             "Number of power state transitions"),
-    ADD_STAT(numPwrMatchStateTransitions,
+    ADD_STAT(numTransitions, UNIT_COUNT, "Number of power state transitions"),
+    ADD_STAT(numPwrMatchStateTransitions, UNIT_COUNT,
              "Number of power state transitions due match request"),
-    ADD_STAT(ticksClkGated,
+    ADD_STAT(ticksClkGated, UNIT_TICK,
              "Distribution of time spent in the clock gated state"),
-    ADD_STAT(pwrStateResidencyTicks,
+    ADD_STAT(pwrStateResidencyTicks, UNIT_TICK,
              "Cumulative time (in ticks) in various power states")
 {
 }
@@ -243,7 +245,8 @@ PowerState::PowerStateStats::regStats()
     // Each sample is time in ticks
     unsigned num_bins = std::max(p.clk_gate_bins, 10U);
     ticksClkGated
-        .init(p.clk_gate_min, p.clk_gate_max, (p.clk_gate_max / num_bins))
+        .init(p.clk_gate_min, p.clk_gate_max,
+            (p.clk_gate_max - p.clk_gate_min + 1.0) / num_bins)
         .flags(pdf | nozero | nonan)
         ;
 

@@ -29,9 +29,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * Authors: John Kalamatianos,
- *          Mark Wyse
  */
 
 #include "gpu-compute/scalar_register_file.hh"
@@ -66,11 +63,11 @@ ScalarRegisterFile::operandsReady(Wavefront *w, GPUDynInstPtr ii) const
 
                 if (regBusy(pSgpr)) {
                     if (ii->isDstOperand(i)) {
-                        w->numTimesBlockedDueWAXDependencies++;
+                        w->stats.numTimesBlockedDueWAXDependencies++;
                     } else if (ii->isSrcOperand(i)) {
                         DPRINTF(GPUSRF, "RAW stall: WV[%d]: %s: physReg[%d]\n",
                                 w->wfDynId, ii->disassemble(), pSgpr);
-                        w->numTimesBlockedDueRAWDependencies++;
+                        w->stats.numTimesBlockedDueRAWDependencies++;
                     }
                     return false;
                 }
@@ -109,7 +106,7 @@ ScalarRegisterFile::waveExecuteInst(Wavefront *w, GPUDynInstPtr ii)
         if (ii->isScalarRegister(i) && ii->isSrcOperand(i)) {
             int DWORDs = ii->getOperandSize(i) <= 4 ? 1
                 : ii->getOperandSize(i) / 4;
-            registerReads += DWORDs;
+            stats.registerReads += DWORDs;
         }
     }
 
@@ -128,7 +125,7 @@ ScalarRegisterFile::waveExecuteInst(Wavefront *w, GPUDynInstPtr ii)
                     enqRegFreeEvent(physReg, tickDelay);
                 }
 
-                registerWrites += nRegs;
+                stats.registerWrites += nRegs;
             }
         }
     }
@@ -152,7 +149,7 @@ ScalarRegisterFile::scheduleWriteOperandsFromLoad(Wavefront *w,
                 enqRegFreeEvent(physReg, computeUnit->clockPeriod());
             }
 
-            registerWrites += nRegs;
+            stats.registerWrites += nRegs;
         }
     }
 }

@@ -36,12 +36,6 @@ class SEWorkload : public Workload
   public:
     using Params = SEWorkloadParams;
 
-  protected:
-    const Params &_params;
-
-  public:
-    const Params &params() const { return _params; }
-
     SEWorkload(const Params &p);
 
     Addr

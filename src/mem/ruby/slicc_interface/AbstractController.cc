@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017,2019,2020 ARM Limited
+ * Copyright (c) 2017,2019-2021 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -69,11 +69,11 @@ AbstractController::AbstractController(const Params &p)
 void
 AbstractController::init()
 {
-    stats.m_delayHistogram.init(10);
+    stats.delayHistogram.init(10);
     uint32_t size = Network::getNumberOfVirtualNetworks();
     for (uint32_t i = 0; i < size; i++) {
-        stats.m_delayVCHistogram.push_back(new Stats::Histogram(this));
-        stats.m_delayVCHistogram[i]->init(10);
+        stats.delayVCHistogram.push_back(new Stats::Histogram(this));
+        stats.delayVCHistogram[i]->init(10);
     }
 
     if (getMemReqQueue()) {
@@ -107,10 +107,10 @@ AbstractController::init()
 void
 AbstractController::resetStats()
 {
-    stats.m_delayHistogram.reset();
+    stats.delayHistogram.reset();
     uint32_t size = Network::getNumberOfVirtualNetworks();
     for (uint32_t i = 0; i < size; i++) {
-        stats.m_delayVCHistogram[i]->reset();
+        stats.delayVCHistogram[i]->reset();
     }
 }
 
@@ -123,9 +123,9 @@ AbstractController::regStats()
 void
 AbstractController::profileMsgDelay(uint32_t virtualNetwork, Cycles delay)
 {
-    assert(virtualNetwork < stats.m_delayVCHistogram.size());
-    stats.m_delayHistogram.sample(delay);
-    stats.m_delayVCHistogram[virtualNetwork]->sample(delay);
+    assert(virtualNetwork < stats.delayVCHistogram.size());
+    stats.delayHistogram.sample(delay);
+    stats.delayVCHistogram[virtualNetwork]->sample(delay);
 }
 
 void
@@ -140,6 +140,28 @@ AbstractController::stallBuffer(MessageBuffer* buf, Addr addr)
             addr);
     assert(m_in_ports > m_cur_in_port);
     (*(m_waiting_buffers[addr]))[m_cur_in_port] = buf;
+}
+
+void
+AbstractController::wakeUpBuffer(MessageBuffer* buf, Addr addr)
+{
+    auto iter = m_waiting_buffers.find(addr);
+    if (iter != m_waiting_buffers.end()) {
+        bool has_other_msgs = false;
+        MsgVecType* msgVec = iter->second;
+        for (unsigned int port = 0; port < msgVec->size(); ++port) {
+            if ((*msgVec)[port] == buf) {
+                buf->reanalyzeMessages(addr, clockEdge());
+                (*msgVec)[port] = NULL;
+            } else if ((*msgVec)[port] != NULL) {
+                has_other_msgs = true;
+            }
+        }
+        if (!has_other_msgs) {
+            delete msgVec;
+            m_waiting_buffers.erase(iter);
+        }
+    }
 }
 
 void
@@ -317,7 +339,10 @@ AbstractController::getPort(const std::string &if_name, PortID idx)
 void
 AbstractController::functionalMemoryRead(PacketPtr pkt)
 {
-    memoryPort.sendFunctional(pkt);
+    // read from mem. req. queue if write data is pending there
+    MessageBuffer *req_queue = getMemReqQueue();
+    if (!req_queue || !req_queue->functionalRead(pkt))
+        memoryPort.sendFunctional(pkt);
 }
 
 int
@@ -423,13 +448,12 @@ AbstractController::MemoryPort::MemoryPort(const std::string &_name,
 AbstractController::
 ControllerStats::ControllerStats(Stats::Group *parent)
     : Stats::Group(parent),
-      m_fully_busy_cycles(this, "fully_busy_cycles",
-                          "cycles for which number of transistions == max "
-                          "transitions"),
-      m_delayHistogram(this, "delay_histogram")
+      ADD_STAT(fullyBusyCycles,
+               "cycles for which number of transistions == max transitions"),
+      ADD_STAT(delayHistogram, "delay_histogram")
 {
-    m_fully_busy_cycles
+    fullyBusyCycles
         .flags(Stats::nozero);
-    m_delayHistogram
+    delayHistogram
         .flags(Stats::nozero);
 }

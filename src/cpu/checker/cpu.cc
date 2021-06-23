@@ -52,9 +52,6 @@
 #include "params/CheckerCPU.hh"
 #include "sim/full_system.hh"
 
-using namespace std;
-using namespace TheISA;
-
 void
 CheckerCPU::init()
 {
@@ -93,7 +90,7 @@ CheckerCPU::~CheckerCPU()
 void
 CheckerCPU::setSystem(System *system)
 {
-    const Params &p = dynamic_cast<const Params &>(_params);
+    const Params &p = params();
 
     systemPtr = system;
 
@@ -124,7 +121,7 @@ CheckerCPU::setDcachePort(RequestPort *dcache_port)
 }
 
 void
-CheckerCPU::serialize(ostream &os) const
+CheckerCPU::serialize(std::ostream &os) const
 {
 }
 

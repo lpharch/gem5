@@ -193,13 +193,7 @@ namespace X86ISA
             tlb = _tlb;
         }
 
-        typedef X86PagetableWalkerParams Params;
-
-        const Params &
-        params() const
-        {
-            return static_cast<const Params &>(_params);
-        }
+        using Params = X86PagetableWalkerParams;
 
         Walker(const Params &params) :
             ClockedObject(params), port(name() + ".port", this),

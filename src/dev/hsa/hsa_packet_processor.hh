@@ -29,21 +29,21 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * Authors: Eric van Tassell
  */
 
 #ifndef __DEV_HSA_HSA_PACKET_PROCESSOR__
 #define __DEV_HSA_HSA_PACKET_PROCESSOR__
 
+#include <algorithm>
 #include <cstdint>
+#include <vector>
 
-#include <queue>
-
+#include "base/types.hh"
 #include "dev/dma_device.hh"
 #include "dev/hsa/hsa.h"
 #include "dev/hsa/hsa_queue.hh"
 #include "params/HSAPacketProcessor.hh"
+#include "sim/eventq.hh"
 
 #define AQL_PACKET_SIZE 64
 #define PAGE_SIZE 4096
@@ -300,6 +300,13 @@ class HSAPacketProcessor: public DmaDevice
     getRegdListEntry(uint32_t queId)
     {
         return regdQList.at(queId);
+    }
+
+    uint64_t
+    inFlightPkts(uint32_t queId)
+    {
+        auto aqlBuf = regdQList.at(queId)->qCntxt.aqlBuf;
+        return aqlBuf->dispIdx() - aqlBuf->rdIdx();
     }
 
     int numHWQueues;

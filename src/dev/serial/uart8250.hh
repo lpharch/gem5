@@ -209,12 +209,7 @@ class Uart8250 : public Uart
     EventFunctionWrapper rxIntrEvent;
 
   public:
-    typedef Uart8250Params Params;
-    const Params &
-    params() const
-    {
-        return dynamic_cast<const Params &>(_params);
-    }
+    using Params = Uart8250Params;
     Uart8250(const Params &p);
 
     Tick read(PacketPtr pkt) override;

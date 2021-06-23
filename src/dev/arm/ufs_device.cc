@@ -756,35 +756,56 @@ UFSHostDevice::UFSHostDevice(const UFSHostDeviceParams &p) :
 UFSHostDevice::
 UFSHostDeviceStats::UFSHostDeviceStats(UFSHostDevice *parent)
     : Stats::Group(parent, "UFSDiskHost"),
-      ADD_STAT(currentSCSIQueue,
+      ADD_STAT(currentSCSIQueue, UNIT_COUNT,
                "Most up to date length of the command queue"),
-      ADD_STAT(currentReadSSDQueue,
+      ADD_STAT(currentReadSSDQueue, UNIT_COUNT,
                "Most up to date length of the read SSD queue"),
-      ADD_STAT(currentWriteSSDQueue,
+      ADD_STAT(currentWriteSSDQueue, UNIT_COUNT,
                "Most up to date length of the write SSD queue"),
       /** Amount of data read/written */
-      ADD_STAT(totalReadSSD, "Number of bytes read from SSD"),
-      ADD_STAT(totalWrittenSSD, "Number of bytes written to SSD"),
-      ADD_STAT(totalReadDiskTransactions,"Number of transactions from disk"),
-      ADD_STAT(totalWriteDiskTransactions, "Number of transactions to disk"),
-      ADD_STAT(totalReadUFSTransactions, "Number of transactions from device"),
-      ADD_STAT(totalWriteUFSTransactions, "Number of transactions to device"),
+      ADD_STAT(totalReadSSD, UNIT_BYTE,
+               "Number of bytes read from SSD"),
+      ADD_STAT(totalWrittenSSD, UNIT_BYTE,
+               "Number of bytes written to SSD"),
+      ADD_STAT(totalReadDiskTransactions, UNIT_COUNT,
+               "Number of transactions from disk"),
+      ADD_STAT(totalWriteDiskTransactions, UNIT_COUNT,
+               "Number of transactions to disk"),
+      ADD_STAT(totalReadUFSTransactions, UNIT_COUNT,
+               "Number of transactions from device"),
+      ADD_STAT(totalWriteUFSTransactions, UNIT_COUNT,
+               "Number of transactions to device"),
       /** Average bandwidth for reads and writes */
-      ADD_STAT(averageReadSSDBW, "Average read bandwidth (bytes/s)",
+      ADD_STAT(averageReadSSDBW,
+               UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+               "Average read bandwidth",
                totalReadSSD / simSeconds),
-      ADD_STAT(averageWriteSSDBW, "Average write bandwidth (bytes/s)",
+      ADD_STAT(averageWriteSSDBW,
+               UNIT_RATE(Stats::Units::Byte, Stats::Units::Second),
+               "Average write bandwidth",
                totalWrittenSSD / simSeconds),
-      ADD_STAT(averageSCSIQueue, "Average command queue length"),
-      ADD_STAT(averageReadSSDQueue, "Average read queue length"),
-      ADD_STAT(averageWriteSSDQueue, "Average write queue length"),
+      ADD_STAT(averageSCSIQueue,
+               UNIT_RATE(Stats::Units::Count, Stats::Units::Tick),
+               "Average command queue length"),
+      ADD_STAT(averageReadSSDQueue,
+               UNIT_RATE(Stats::Units::Count, Stats::Units::Tick),
+               "Average read queue length"),
+      ADD_STAT(averageWriteSSDQueue,
+               UNIT_RATE(Stats::Units::Count, Stats::Units::Tick),
+               "Average write queue length"),
       /** Number of doorbells rung*/
-      ADD_STAT(curDoorbell, "Most up to date number of doorbells used",
+      ADD_STAT(curDoorbell, UNIT_COUNT,
+               "Most up to date number of doorbells used",
                parent->activeDoorbells),
-      ADD_STAT(maxDoorbell, "Maximum number of doorbells utilized"),
-      ADD_STAT(averageDoorbell, "Average number of Doorbells used"),
+      ADD_STAT(maxDoorbell, UNIT_COUNT,
+               "Maximum number of doorbells utilized"),
+      ADD_STAT(averageDoorbell,
+               UNIT_RATE(Stats::Units::Count, Stats::Units::Tick),
+               "Average number of Doorbells used"),
       /** Latency*/
-      ADD_STAT(transactionLatency, "Histogram of transaction times"),
-      ADD_STAT(idleTimes, "Histogram of idle times")
+      ADD_STAT(transactionLatency, UNIT_TICK,
+               "Histogram of transaction times"),
+      ADD_STAT(idleTimes, UNIT_TICK, "Histogram of idle times")
 {
     using namespace Stats;
 
@@ -1029,26 +1050,9 @@ UFSHostDevice::read(PacketPtr pkt)
 Tick
 UFSHostDevice::write(PacketPtr pkt)
 {
-    uint32_t data = 0;
+    assert(pkt->getSize() <= 4);
 
-    switch (pkt->getSize()) {
-
-      case 1:
-        data = pkt->getLE<uint8_t>();
-        break;
-
-      case 2:
-        data = pkt->getLE<uint16_t>();
-        break;
-
-      case 4:
-        data = pkt->getLE<uint32_t>();
-        break;
-
-      default:
-        panic("Undefined UFSHCD controller write size!\n");
-        break;
-    }
+    const uint32_t data = pkt->getUintX(ByteOrder::little);
 
     switch (pkt->getAddr() & 0xFF)
     {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 ARM Limited
+ * Copyright (c) 2016-2018, 2021 Arm Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -45,8 +45,9 @@
 
 PowerModelState::PowerModelState(const Params &p)
     : SimObject(p), _temp(0), clocked_object(NULL),
-      ADD_STAT(dynamicPower, "Dynamic power for this object (Watts)"),
-      ADD_STAT(staticPower, "Static power for this object (Watts)")
+      ADD_STAT(dynamicPower, UNIT_WATT,
+               "Dynamic power for this object (Watts)"),
+      ADD_STAT(staticPower, UNIT_WATT, "Static power for this object (Watts)")
 {
     dynamicPower
       .method(this, &PowerModelState::getDynamicPower);
@@ -57,8 +58,10 @@ PowerModelState::PowerModelState(const Params &p)
 PowerModel::PowerModel(const Params &p)
     : SimObject(p), states_pm(p.pm), subsystem(p.subsystem),
       clocked_object(NULL), power_model_type(p.pm_type),
-      ADD_STAT(dynamicPower, "Dynamic power for this power state"),
-      ADD_STAT(staticPower, "Static power for this power state")
+      ADD_STAT(dynamicPower, UNIT_WATT,
+                         "Dynamic power for this power state"),
+      ADD_STAT(staticPower, UNIT_WATT,
+                         "Static power for this power state")
 {
     panic_if(subsystem == NULL,
              "Subsystem is NULL! This is not acceptable for a PowerModel!\n");
@@ -86,7 +89,7 @@ PowerModel::setClockedObject(ClockedObject * clkobj)
 }
 
 void
-PowerModel::thermalUpdateCallback(const double & temp)
+PowerModel::thermalUpdateCallback(const Temperature &temp)
 {
     for (auto & pms: states_pm)
         pms->setTemperature(temp);
