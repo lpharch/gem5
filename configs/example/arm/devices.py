@@ -82,14 +82,14 @@ class L2(L2Cache):
     response_latency = 5
     mshrs = 32
     tgts_per_mshr = 8
-    size = '1MB'
+    size = '256kB'
     assoc = 16
     write_buffers = 8
     #clusivity='mostly_excl'
 
 
 class L3(Cache):
-    size = '16MB'
+    size = '2MB'
     assoc = 16
     tag_latency = 20
     data_latency = 20

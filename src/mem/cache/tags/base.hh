@@ -279,6 +279,16 @@ class BaseTags : public ClockedObject
                                  const std::size_t size,
                                  std::vector<CacheBlk*>& evict_blks) = 0;
 
+    //find victim for request initiated by specific cpu core
+    virtual CacheBlk* findVictimForCore(Addr addr, const bool is_secure,
+                                 const std::size_t size,
+                                 std::vector<CacheBlk*>& evict_blks,
+                                 uint32_t core_id)
+    {
+        return findVictim(addr, is_secure, size, evict_blks);
+    }
+
+
     /**
      * Access block and update replacement data. May not succeed, in which case
      * nullptr is returned. This has all the implications of a cache access and

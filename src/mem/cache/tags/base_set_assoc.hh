@@ -53,6 +53,7 @@
 
 #include "base/logging.hh"
 #include "base/types.hh"
+#include "debug/WQ.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/cache_blk.hh"
 #include "mem/cache/replacement_policies/base.hh"
@@ -180,6 +181,30 @@ class BaseSetAssoc : public BaseTags
 
         return victim;
     }
+
+    CacheBlk* findVictimForCore(Addr addr, const bool is_secure,
+                         const std::size_t size,
+                         std::vector<CacheBlk*>& evict_blks,
+                         uint32_t core_id) override
+    {
+        // Get possible entries to be victimized
+        const std::vector<ReplaceableEntry*> entries =
+            indexingPolicy->getPossibleEntries(addr);
+
+        //TODO:filter the candidates given by index policy
+        DPRINTF(WQ, "Find victim for core: %u\n", core_id);
+
+
+        // Choose replacement victim from replacement candidates
+        CacheBlk* victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(
+                                entries));
+
+        // There is only one eviction for this replacement
+        evict_blks.push_back(victim);
+
+        return victim;
+    }
+
 
     /**
      * Insert the new block into the cache and update replacement data.
