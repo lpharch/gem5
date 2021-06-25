@@ -85,6 +85,9 @@ class BaseSetAssoc : public BaseTags
     /** Replacement policy */
     ReplacementPolicy::Base *replacementPolicy;
 
+    /** Map for way partitioning */
+    std::unordered_map<uint32_t, std::vector<uint32_t>> part_table;
+
   public:
     /** Convenience typedef. */
      typedef BaseSetAssocParams Params;
@@ -191,13 +194,25 @@ class BaseSetAssoc : public BaseTags
         const std::vector<ReplaceableEntry*> entries =
             indexingPolicy->getPossibleEntries(addr);
 
-        //TODO:filter the candidates given by index policy
-        DPRINTF(WQ, "Find victim for core: %u\n", core_id);
+        //WQ: if L3, filter the allowed ways for replacement
+        std::vector<ReplaceableEntry*> entries_allowed;
 
+        if (core_id < 128 && std::string::npos != name().find("l3cache")){
+            //real cores, 128 sounds like a safe hardcoded number
+            for (std::vector<uint32_t>::iterator it = part_table[core_id].begin();
+                 it != part_table[core_id].end(); it++){
+                 entries_allowed.push_back(entries[*it]);
+            }
+            DPRINTF(WQ, "For core %u, original candiates: %d, \
+                         allowed candidates %d\n", core_id,
+                        entries.size(), entries_allowed.size());
+        } else {  //other agents like walkers
+            entries_allowed = entries;
+        }
 
         // Choose replacement victim from replacement candidates
         CacheBlk* victim = static_cast<CacheBlk*>(replacementPolicy->getVictim(
-                                entries));
+                                entries_allowed));
 
         // There is only one eviction for this replacement
         evict_blks.push_back(victim);

@@ -71,6 +71,16 @@ class BaseTags(ClockedObject):
     entry_size = Param.Int(Parent.cache_line_size,
                            "Indexing entry size in bytes")
 
+    # For populate the partition table
+    core_num = Param.Int(0, "Number of cores in system")
+    # a flattened 2D mat, row corresponding to CPU, col corresponding to way
+    # 1 means allow to use while 0 means forbidden
+    # a more compact way to store this would be use way bitmap per CPU
+    allocated_ways = VectorParam.UInt32([],
+                    "Number of ways allocated to each core")
+
+
+
 class BaseSetAssoc(BaseTags):
     type = 'BaseSetAssoc'
     cxx_header = "mem/cache/tags/base_set_assoc.hh"
@@ -81,6 +91,7 @@ class BaseSetAssoc(BaseTags):
     # Get replacement policy from the parent (cache)
     replacement_policy = Param.BaseReplacementPolicy(
         Parent.replacement_policy, "Replacement policy")
+
 
 class SectorTags(BaseTags):
     type = 'SectorTags'

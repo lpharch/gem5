@@ -37,6 +37,7 @@
 
 import m5
 from m5.objects import *
+#from mem.cache.tags.Tags import BaseSetAssoc
 m5.util.addToPath('../../')
 from common.Caches import *
 from common import ObjectList
@@ -90,13 +91,18 @@ class L2(L2Cache):
 
 class L3(Cache):
     size = '2MB'
-    assoc = 16
+    assoc = 4
     tag_latency = 20
     data_latency = 20
     response_latency = 20
     mshrs = 20
     tgts_per_mshr = 12
     clusivity='mostly_excl'
+    #wq
+    tags = BaseSetAssoc(core_num = 2, allocated_ways = [1,0,0,0,0,0,0,1])
+    #tags = BaseSetAssoc(core_num = 2, allocated_ways = [1,1,1,0,0,1,1,1])
+    #tags.core_num = 2
+    #tags.allocated_ways = [1,1,1,0,0,1,1,1]
 
 
 class MemBus(SystemXBar):

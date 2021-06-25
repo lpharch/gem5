@@ -61,6 +61,27 @@ BaseSetAssoc::BaseSetAssoc(const Params &p)
     if (blkSize < 4 || !isPowerOf2(blkSize)) {
         fatal("Block size must be at least 4 and a power of 2");
     }
+
+
+    //Get the initial way partition from the config file
+    uint32_t core_num = p.core_num;
+    if (core_num != 0){
+
+    uint index = 0;
+    for (uint i=0; i< core_num; i++){
+        std::vector<uint32_t> cur_part{};
+        for (int j=0; j < p.assoc; j++){
+            if (p.allocated_ways[index]) cur_part.push_back(j);
+            index++;
+        }
+        part_table[i] = cur_part;
+    }
+    }
+    //TODO, do the sanity checking on partition
+    //std::vector<uint32_t> part0{0,1};
+    //std::vector<uint32_t> part1{1,2};
+    //part_table[0] = part0;
+    //part_table[1] = part1;
 }
 
 void
