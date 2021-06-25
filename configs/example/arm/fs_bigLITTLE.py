@@ -210,6 +210,10 @@ def addOptions(parser):
                         help=Options.vio_9p_help)
     parser.add_argument("--dtb-gen", action="store_true",
                         help="Doesn't run simulation, it generates a DTB only")
+
+    parser.add_argument("--sim-insts", type=int, default=0,
+                        help="Number of approx instruction to simulate, \
+                        0 means unlimited")
     return parser
 
 def build(options):
@@ -305,7 +309,7 @@ def build(options):
     if options.vio_9p:
         FSConfig.attach_9p(system.realview, system.iobus)
 
-    return root
+    return root, all_cpus
 
 def _build_kvm(system, cpus):
     system.kvm_vm = KvmVM()
@@ -351,9 +355,13 @@ def instantiate(options, checkpoint_dir=None):
         m5.instantiate()
 
 
-def run(checkpoint_dir=m5.options.outdir):
+def run(options, all_cpus, heckpoint_dir=m5.options.outdir):
     # start simulation (and drop checkpoints when requested)
     while True:
+        if options.sim_insts > 0:
+            for cpu_inst in all_cpus:
+                cpu_inst.scheduleInstStop(0, options.sim_insts,
+                                          "Max Inst Reached")
         event = m5.simulate()
         exit_msg = event.getCause()
         if exit_msg == "checkpoint":
@@ -361,6 +369,9 @@ def run(checkpoint_dir=m5.options.outdir):
             cpt_dir = os.path.join(checkpoint_dir, "cpt.%d" % m5.curTick())
             m5.checkpoint(cpt_dir)
             print("Checkpoint done.")
+        elif exit_msg == "Max Inst Reached":
+            print("Simulate specified number of inst done, exit")
+            break
         else:
             print(exit_msg, " @ ", m5.curTick())
             break
@@ -377,13 +388,13 @@ def main():
         description="Generic ARM big.LITTLE configuration")
     addOptions(parser)
     options = parser.parse_args()
-    root = build(options)
+    root, all_cpus = build(options)
     root.apply_config(options.param)
     instantiate(options)
     if options.dtb_gen:
       generateDtb(root)
     else:
-      run()
+      run(options, all_cpus)
 
 
 if __name__ == "__m5_main__":
