@@ -214,6 +214,10 @@ def addOptions(parser):
     parser.add_argument("--sim-insts", type=int, default=0,
                         help="Number of approx instruction to simulate, \
                         0 means unlimited")
+    parser.add_argument("--dump-ckpt", action="store_true",
+                        help="KVM run for dumping ckpt (by insts)")
+    parser.add_argument("--ckpt-pos", type = str,
+                help = "Instruction Position to dump ckpts, unit of 100M")
     return parser
 
 def build(options):
@@ -355,23 +359,51 @@ def instantiate(options, checkpoint_dir=None):
         m5.instantiate()
 
 
-def run(options, all_cpus, heckpoint_dir=m5.options.outdir):
+def run(options, root, all_cpus, checkpoint_dir=m5.options.outdir):
     # start simulation (and drop checkpoints when requested)
+    for_ckpt = options.dump_ckpt
+    if for_ckpt:
+        ckpt_pos_unit = 100000000
+        ckpt_pos = [int(p) for p in options.ckpt_pos.split()]
+        ckpt_pos.sort()
+        num_ckpt = len(ckpt_pos)
+        ckpt_index = 0
+        last_ckpt_pos = 0
+        print("To take %d ckpts" % num_ckpt)
     while True:
-        if options.sim_insts > 0:
+        if for_ckpt:
+            if not ckpt_index < num_ckpt:
+                break
+            else:
+                #by default the benchmark runs on cpu0
+                all_cpus[0].scheduleInstStop(0,
+                    (ckpt_pos[ckpt_index] - last_ckpt_pos)*ckpt_pos_unit,
+                    "Max Inst Reached")
+                last_ckpt_pos = ckpt_pos[ckpt_index]
+                ckpt_index += 1
+        elif options.sim_insts > 0:
             for cpu_inst in all_cpus:
                 cpu_inst.scheduleInstStop(0, options.sim_insts,
                                           "Max Inst Reached")
+
         event = m5.simulate()
         exit_msg = event.getCause()
+
         if exit_msg == "checkpoint":
             print("Dropping checkpoint at tick %d" % m5.curTick())
             cpt_dir = os.path.join(checkpoint_dir, "cpt.%d" % m5.curTick())
             m5.checkpoint(cpt_dir)
             print("Checkpoint done.")
         elif exit_msg == "Max Inst Reached":
-            print("Simulate specified number of inst done, exit")
-            break
+            if for_ckpt:
+                print("Dropping ckpt at Inst count %d" \
+                % root.system.bigCluster.cpus[0].totalInsts())
+                cpt_dir = os.path.join(checkpoint_dir, "cpt.%d" % m5.curTick())
+                m5.checkpoint(cpt_dir)
+                print("Checkpointing done.")
+            else:
+                print("Simulate specified number of inst done, exit")
+                break
         else:
             print(exit_msg, " @ ", m5.curTick())
             break
@@ -390,11 +422,12 @@ def main():
     options = parser.parse_args()
     root, all_cpus = build(options)
     root.apply_config(options.param)
+    m5.disableAllListeners()
     instantiate(options)
     if options.dtb_gen:
       generateDtb(root)
     else:
-      run(options, all_cpus)
+      run(options, root, all_cpus)
 
 
 if __name__ == "__m5_main__":

@@ -83,6 +83,10 @@ Stride::Stride(const StridePrefetcherParams &p)
     pcTableInfo(p.table_assoc, p.table_entries, p.table_indexing_policy,
         p.table_replacement_policy)
 {
+    std::size_t found_loc = name().find("cpus");
+    if (found_loc != std::string::npos){
+        coreId = std::stoi(name().substr(found_loc+4, found_loc+6));
+    }
 }
 
 Stride::PCTable*

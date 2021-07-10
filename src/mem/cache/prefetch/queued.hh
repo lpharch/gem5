@@ -108,7 +108,7 @@ class Queued : public Base
          * @param t time when the prefetch becomes ready
          */
         void createPkt(Addr paddr, unsigned blk_size, RequestorID requestor_id,
-                       bool tag_prefetch, Tick t);
+                       bool tag_prefetch, Tick t, uint32_t coreId = 1023);
 
         /**
          * Sets the translation request needed to obtain the physical address

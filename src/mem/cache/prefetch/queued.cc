@@ -43,6 +43,7 @@
 #include "base/logging.hh"
 #include "base/trace.hh"
 #include "debug/HWPrefetch.hh"
+#include "debug/WQ.hh"
 #include "mem/cache/base.hh"
 #include "mem/request.hh"
 #include "params/QueuedPrefetcher.hh"
@@ -53,10 +54,12 @@ void
 Queued::DeferredPacket::createPkt(Addr paddr, unsigned blk_size,
                                             RequestorID requestor_id,
                                             bool tag_prefetch,
-                                            Tick t) {
+                                            Tick t,
+                                            uint32_t coreId) {
     /* Create a prefetch memory request */
     RequestPtr req = std::make_shared<Request>(paddr, blk_size,
                                                 0, requestor_id);
+    req->coreId(coreId);
 
     if (pfInfo.isSecure()) {
         req->setFlags(Request::SECURE);
@@ -280,8 +283,9 @@ Queued::translationComplete(DeferredPacket *dp, bool failed)
                     "cache/MSHR prefetch addr:%#x\n", target_paddr);
         } else {
             Tick pf_time = curTick() + clockPeriod() * latency;
+            //wq: not sure coreId should also be inserted here
             it->createPkt(it->translationRequest->getPaddr(), blkSize,
-                    requestorId, tagPrefetch, pf_time);
+                    requestorId, tagPrefetch, pf_time, coreId);
             addToQueue(pfq, *it);
         }
     } else {
@@ -422,7 +426,7 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
     if (has_target_pa) {
         Tick pf_time = curTick() + clockPeriod() * latency;
         dpp.createPkt(target_paddr, blkSize, requestorId, tagPrefetch,
-                      pf_time);
+                      pf_time, coreId);
         DPRINTF(HWPrefetch, "Prefetch queued. "
                 "addr:%#x priority: %3d tick:%lld.\n",
                 new_pfi.getAddr(), priority, pf_time);

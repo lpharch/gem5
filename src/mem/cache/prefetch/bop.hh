@@ -38,6 +38,7 @@
 
 #include <queue>
 
+#include "debug/WQ.hh"
 #include "mem/cache/prefetch/queued.hh"
 #include "mem/packet.hh"
 

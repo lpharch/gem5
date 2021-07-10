@@ -282,6 +282,9 @@ class Base : public ClockedObject
     /** Request id for prefetches */
     const RequestorID requestorId;
 
+    /** core current prefetcher is attached to, if shared, 1023 */
+    uint32_t coreId;
+
     const Addr pageBytes;
 
     /** Prefetch on every access, not just misses */

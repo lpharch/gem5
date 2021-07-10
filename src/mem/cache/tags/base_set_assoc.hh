@@ -197,7 +197,7 @@ class BaseSetAssoc : public BaseTags
         //WQ: if L3, filter the allowed ways for replacement
         std::vector<ReplaceableEntry*> entries_allowed;
 
-        if (core_id < 128 && std::string::npos != name().find("l3cache")){
+        if (core_id < 128 && std::string::npos != name().find("l3")){
             //real cores, 128 sounds like a safe hardcoded number
             for (std::vector<uint32_t>::iterator it = part_table[core_id].begin();
                  it != part_table[core_id].end(); it++){

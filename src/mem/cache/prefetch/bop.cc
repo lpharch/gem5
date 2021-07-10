@@ -45,6 +45,12 @@ BOP::BOP(const BOPPrefetcherParams &p)
       issuePrefetchRequests(false), bestOffset(1), phaseBestOffset(0),
       bestScore(0), round(0)
 {
+    DPRINTF(WQ, "Requestor ID for this prefetcher is %d \n", requestorId);
+    std::size_t found_loc = name().find("cpus");
+    if (found_loc != std::string::npos){
+        coreId = std::stoi(name().substr(found_loc+4, found_loc+6));
+        //DPRINTF(WQ, "Found prefetcher attached to core %u \n", owner_core);
+    }
     if (!isPowerOf2(rrEntries)) {
         fatal("%s: number of RR entries is not power of 2\n", name());
     }

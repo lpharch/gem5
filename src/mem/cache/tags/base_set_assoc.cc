@@ -66,22 +66,28 @@ BaseSetAssoc::BaseSetAssoc(const Params &p)
     //Get the initial way partition from the config file
     uint32_t core_num = p.core_num;
     if (core_num != 0){
-
-    uint index = 0;
-    for (uint i=0; i< core_num; i++){
-        std::vector<uint32_t> cur_part{};
-        for (int j=0; j < p.assoc; j++){
-            if (p.allocated_ways[index]) cur_part.push_back(j);
-            index++;
+        uint index = 0;
+        for (uint i=0; i< core_num; i++){
+            std::vector<uint32_t> cur_part{};
+            for (int j=0; j < p.assoc; j++){
+                if (p.allocated_ways[index]) cur_part.push_back(j);
+                index++;
+            }
+            part_table[i] = cur_part;
         }
-        part_table[i] = cur_part;
+    }
+
+    if (std::string::npos != name().find("l3cache")){
+    DPRINTF(WQ, "Way Partitioning Initialization Done\n");
+    for (int i = 0; i < core_num; i++){
+        DPRINTF(WQ, "Core %d allowed to use: ", i);
+        for (std::vector<uint32_t>::iterator it = part_table[i].begin();
+            it != part_table[i].end(); it++){
+                DPRINTF(WQ, "%u ", *it);
+        }
+        DPRINTF(WQ, "\n");
     }
     }
-    //TODO, do the sanity checking on partition
-    //std::vector<uint32_t> part0{0,1};
-    //std::vector<uint32_t> part1{1,2};
-    //part_table[0] = part0;
-    //part_table[1] = part1;
 }
 
 void

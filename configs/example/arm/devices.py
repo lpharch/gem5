@@ -37,7 +37,6 @@
 
 import m5
 from m5.objects import *
-#from mem.cache.tags.Tags import BaseSetAssoc
 m5.util.addToPath('../../')
 from common.Caches import *
 from common import ObjectList
@@ -64,6 +63,8 @@ class L1D(L1_DCache):
     size = '32kB'
     assoc = 2
     write_buffers = 16
+    prefetcher = StridePrefetcher()
+
 
 
 class WalkCache(PageTableWalkerCache):
@@ -87,19 +88,22 @@ class L2(L2Cache):
     assoc = 16
     write_buffers = 8
     #clusivity='mostly_excl'
+    prefetcher = BOPPrefetcher()
 
 
 class L3(Cache):
-    size = '2MB'
-    assoc = 4
+    size = '16MB'
+    assoc = 16
     tag_latency = 20
     data_latency = 20
     response_latency = 20
     mshrs = 20
     tgts_per_mshr = 12
     clusivity='mostly_excl'
+    prefetcher = DCPTPrefetcher()
     #wq
-    tags = BaseSetAssoc(core_num = 2, allocated_ways = [1,0,0,0,0,0,0,1])
+    tags = BaseSetAssoc()
+    #tags = BaseSetAssoc(core_num = 16, allocated_ways = [1,1,1,0,0,1,1,1])
     #tags = BaseSetAssoc(core_num = 2, allocated_ways = [1,1,1,0,0,1,1,1])
     #tags.core_num = 2
     #tags.allocated_ways = [1,1,1,0,0,1,1,1]
